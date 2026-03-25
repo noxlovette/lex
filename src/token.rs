@@ -1,9 +1,11 @@
+use crate::Literal;
 use std::{collections::HashMap, fmt::Display, sync::LazyLock};
 use strum::Display;
 
+#[derive(Clone, Debug)]
 pub struct Token {
     token_type: TokenType,
-    lexeme: String,
+    pub lexeme: String,
     literal: Option<Literal>,
     line: usize,
 }
@@ -27,7 +29,7 @@ impl Token {
     }
 }
 
-#[derive(Display, Clone, Copy)]
+#[derive(Display, Clone, Copy, Debug)]
 pub enum TokenType {
     // Single-character tokens.
     LeftParen,
@@ -101,11 +103,3 @@ pub static KEYWORDS: LazyLock<HashMap<&'static str, TokenType>> = LazyLock::new(
 
     k
 });
-
-#[derive(Debug, Clone, PartialEq, Display)]
-pub enum Literal {
-    Number(f64),
-    String(String),
-    Bool(bool),
-    Nil,
-}
