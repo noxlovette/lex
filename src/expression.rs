@@ -11,6 +11,12 @@ pub enum Literal {
     Nil,
 }
 
+impl Default for Literal {
+    fn default() -> Self {
+        Self::Nil
+    }
+}
+
 impl Display for Literal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use Literal::*;

@@ -6,8 +6,8 @@ use strum::Display;
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
-    literal: Option<Literal>,
-    line: usize,
+    pub literal: Option<Literal>,
+    pub line: usize,
 }
 
 impl Display for Token {

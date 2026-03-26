@@ -19,4 +19,10 @@ pub enum InterpreterError {
     StringError { line: usize },
     #[error("Number parsing error {line:?}")]
     NumberError { line: usize },
+    #[error("[line {line:?}] Parsing error. {message:?}, found {lexeme:?}")]
+    ParseError {
+        line: usize,
+        message: String,
+        lexeme: String,
+    },
 }
