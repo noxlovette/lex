@@ -1,10 +1,11 @@
 use std::io;
 use thiserror::Error;
 
-pub type InterpreterResult<T> = Result<T, InterpreterError>;
+pub type CompiletimeResult<T> = Result<T, CompiletimeError>;
+pub type RuntimeResult<T> = Result<T, RuntimeError>;
 
 #[derive(Debug, Error)]
-pub enum InterpreterError {
+pub enum CompiletimeError {
     #[error("IO Error")]
     IOError(#[from] io::Error),
     #[error("[line {line:?}] Error {location:?}: {message:?}")]
@@ -25,4 +26,10 @@ pub enum InterpreterError {
         message: String,
         lexeme: String,
     },
+}
+
+#[derive(Debug, Error)]
+pub enum RuntimeError {
+    #[error("Type Error: {0:?}")]
+    TypeError(String),
 }

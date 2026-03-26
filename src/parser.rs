@@ -1,4 +1,4 @@
-use crate::{Expr, InterpreterError, InterpreterResult, Token, TokenType};
+use crate::{CompiletimeError, CompiletimeResult, Expr, Token, TokenType};
 use crate::{Literal, TokenType::*};
 
 #[derive(Default)]
@@ -21,33 +21,33 @@ impl Parser {
         self.expression().ok()
     }
 
-    fn expression(&mut self) -> InterpreterResult<Expr> {
+    fn expression(&mut self) -> CompiletimeResult<Expr> {
         Ok(self.equality()?)
     }
 
-    fn equality(&mut self) -> InterpreterResult<Expr> {
+    fn equality(&mut self) -> CompiletimeResult<Expr> {
         let mut expr = self.comparison()?;
         while self.match_token(&[TokenType::BangEqual, TokenType::EqualEqual]) {
             let operator = self.previous();
             let right = self.comparison()?;
             expr = Expr::Binary {
-                left: expr.rc(),
+                left: expr.into_box(),
                 operator: operator,
-                right: right.rc(),
+                right: right.into_box(),
             }
         }
 
         Ok(expr)
     }
 
-    fn comparison(&mut self) -> InterpreterResult<Expr> {
+    fn comparison(&mut self) -> CompiletimeResult<Expr> {
         let mut expr = self.term()?;
 
         while self.match_token(&[Greater, GreaterEqual, Less, LessEqual]) {
             let operator = self.previous();
-            let right = self.term()?.rc();
+            let right = self.term()?.into_box();
             expr = Expr::Binary {
-                left: expr.rc(),
+                left: expr.into_box(),
                 operator: operator,
                 right,
             }
@@ -56,14 +56,14 @@ impl Parser {
         Ok(expr)
     }
 
-    fn term(&mut self) -> InterpreterResult<Expr> {
+    fn term(&mut self) -> CompiletimeResult<Expr> {
         let mut expr = self.factor()?;
 
         while self.match_token(&[Minus, Plus]) {
             let operator = self.previous();
-            let right = self.factor()?.rc();
+            let right = self.factor()?.into_box();
             expr = Expr::Binary {
-                left: expr.rc(),
+                left: expr.into_box(),
                 operator: operator,
                 right,
             }
@@ -72,14 +72,14 @@ impl Parser {
         Ok(expr)
     }
 
-    fn factor(&mut self) -> InterpreterResult<Expr> {
+    fn factor(&mut self) -> CompiletimeResult<Expr> {
         let mut expr = self.unary()?;
 
         while self.match_token(&[Slash, Star]) {
             let operator = self.previous();
-            let right = self.unary()?.rc();
+            let right = self.unary()?.into_box();
             expr = Expr::Binary {
-                left: expr.rc(),
+                left: expr.into_box(),
                 operator: operator,
                 right,
             }
@@ -88,17 +88,17 @@ impl Parser {
         Ok(expr)
     }
 
-    fn unary(&mut self) -> InterpreterResult<Expr> {
+    fn unary(&mut self) -> CompiletimeResult<Expr> {
         if self.match_token(&[Bang, Minus]) {
             let operator = self.previous();
-            let right = self.unary()?.rc();
+            let right = self.unary()?.into_box();
             Ok(Expr::Unary { operator, right })
         } else {
             Ok(self.primary()?)
         }
     }
 
-    fn primary(&mut self) -> InterpreterResult<Expr> {
+    fn primary(&mut self) -> CompiletimeResult<Expr> {
         if self.match_token(&[False]) {
             Ok(Expr::Literal {
                 value: Literal::Bool(false),
@@ -116,7 +116,7 @@ impl Parser {
                 value: self.previous().literal.unwrap_or_default(),
             })
         } else if self.match_token(&[LeftParen]) {
-            let expression = self.expression()?.rc();
+            let expression = self.expression()?.into_box();
             self.consume(&RightParen, "Expect ')' after expression")?;
             Ok(Expr::Grouping { expression })
         } else {
@@ -124,7 +124,7 @@ impl Parser {
         }
     }
 
-    fn consume(&mut self, token_type: &TokenType, msg: &str) -> InterpreterResult<Token> {
+    fn consume(&mut self, token_type: &TokenType, msg: &str) -> CompiletimeResult<Token> {
         if self.check(&token_type) {
             Ok(self.advance().clone())
         } else {
@@ -132,9 +132,9 @@ impl Parser {
         }
     }
 
-    fn error(&self, msg: &str) -> InterpreterError {
+    fn error(&self, msg: &str) -> CompiletimeError {
         let token = self.peek();
-        InterpreterError::ParseError {
+        CompiletimeError::ParseError {
             line: token.line,
             message: msg.to_string(),
             lexeme: token.lexeme.clone(),

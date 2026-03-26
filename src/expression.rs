@@ -62,19 +62,19 @@ impl Hash for Literal {
 pub enum Expr {
     Unary {
         operator: Token,
-        right: Rc<Expr>,
+        right: Box<Expr>,
     },
     Assign {
         name: Token,
-        value: Rc<Expr>,
+        value: Box<Expr>,
     },
     Binary {
-        left: Rc<Expr>,
+        left: Box<Expr>,
         operator: Token,
-        right: Rc<Expr>,
+        right: Box<Expr>,
     },
     Grouping {
-        expression: Rc<Expr>,
+        expression: Box<Expr>,
     },
     Literal {
         value: Literal,
@@ -83,23 +83,23 @@ pub enum Expr {
         name: Token,
     },
     Logical {
-        left: Rc<Expr>,
+        left: Box<Expr>,
         operator: Token,
-        right: Rc<Expr>,
+        right: Box<Expr>,
     },
     Call {
-        callee: Rc<Expr>,
+        callee: Box<Expr>,
         paren: Token, // only used for error reporting
-        arguments: Vec<Rc<Expr>>,
+        arguments: Vec<Box<Expr>>,
     },
     Get {
-        object: Rc<Expr>, // this is the expression on the left of the call, meaning: expr.name
+        object: Box<Expr>, // this is the expression on the left of the call, meaning: expr.name
         name: Token,
     },
     Set {
-        object: Rc<Expr>,
+        object: Box<Expr>,
         name: Token,
-        value: Rc<Expr>,
+        value: Box<Expr>,
     },
     This {
         keyword: Token,
@@ -118,26 +118,26 @@ impl Expr {
         }
     }
 
-    /// Consumes the value and wraps it in an RC
-    pub fn rc(self) -> Rc<Self> {
-        Rc::new(self)
+    /// Consumes the value and wraps it in a Box
+    pub fn into_box(self) -> Box<Self> {
+        Box::new(self)
     }
 }
 
 /*
-Wrapper around Rc<Expr> that uses pointer-based equality and hashing.
+Wrapper around Box<Expr> that uses pointer-based equality and hashing.
 This allows to use expression references as HashMap keys based on their
 identity (where they are in memory) rather than their content.
  */
 #[derive(Clone)]
-pub struct ExprRef(pub Rc<Expr>);
+pub struct ExprRef(pub Box<Expr>);
 
 impl ExprRef {
     pub fn new(expr: Expr) -> Self {
-        ExprRef(Rc::new(expr))
+        ExprRef(Box::new(expr))
     }
 
-    pub fn from_rc(rc: Rc<Expr>) -> Self {
+    pub fn from_rc(rc: Box<Expr>) -> Self {
         ExprRef(rc)
     }
 }
@@ -147,22 +147,6 @@ impl std::ops::Deref for ExprRef {
 
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-// Pointer-based equality: two ExprRefs are equal if they point to the same allocation
-impl PartialEq for ExprRef {
-    fn eq(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.0, &other.0)
-    }
-}
-
-impl Eq for ExprRef {}
-
-// Pointer-based hashing: hash the pointer address, not the content
-impl Hash for ExprRef {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        std::ptr::hash(Rc::as_ptr(&self.0), state)
     }
 }
 
@@ -183,7 +167,7 @@ impl AstPrinter {
         }
     }
 
-    fn parenthesize(&self, name: &str, exprs: &[&Rc<Expr>]) -> String {
+    fn parenthesize(&self, name: &str, exprs: &[&Box<Expr>]) -> String {
         let mut out = String::new();
         out.push('(');
         out.push_str(name);

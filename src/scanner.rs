@@ -1,4 +1,4 @@
-use crate::{InterpreterError, InterpreterResult, KEYWORDS, Literal, Token, TokenType};
+use crate::{CompiletimeError, CompiletimeResult, KEYWORDS, Literal, Token, TokenType};
 
 #[derive(Default)]
 pub struct Scanner<'a> {
@@ -20,7 +20,7 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    pub fn scan_tokens(mut self) -> InterpreterResult<Vec<Token>> {
+    pub fn scan_tokens(mut self) -> CompiletimeResult<Vec<Token>> {
         while !&self.is_at_end() {
             self.start = self.current;
             self.scan_token()?;
@@ -32,9 +32,9 @@ impl<'a> Scanner<'a> {
         Ok(self.tokens)
     }
 
-    fn scan_token(&mut self) -> InterpreterResult<()> {
+    fn scan_token(&mut self) -> CompiletimeResult<()> {
         use super::TokenType::*;
-        use crate::InterpreterError::TokenError;
+        use crate::CompiletimeError::TokenError;
 
         let c = self.advance();
         match c {
@@ -123,7 +123,7 @@ impl<'a> Scanner<'a> {
         self.add_token(t, None);
     }
 
-    fn number(&mut self) -> InterpreterResult<()> {
+    fn number(&mut self) -> CompiletimeResult<()> {
         while self.peek().is_ascii_digit() {
             self.advance();
         }
@@ -139,7 +139,7 @@ impl<'a> Scanner<'a> {
 
         let num = self.source[self.start..self.current]
             .parse()
-            .map_err(|_| InterpreterError::NumberError { line: self.line })?;
+            .map_err(|_| CompiletimeError::NumberError { line: self.line })?;
 
         self.add_token(TokenType::Number, Some(Literal::Number(num)));
 
@@ -154,8 +154,8 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn string(&mut self) -> InterpreterResult<()> {
-        use crate::InterpreterError::StringError;
+    fn string(&mut self) -> CompiletimeResult<()> {
+        use crate::CompiletimeError::StringError;
 
         while self.peek() != '"' && !self.is_at_end() {
             if self.peek() == '\n' {

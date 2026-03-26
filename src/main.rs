@@ -1,5 +1,5 @@
 use clap::Parser;
-use lex::{InterpreterResult, Scanner};
+use lex::{CompiletimeResult, Scanner};
 use std::{fs, path::PathBuf};
 
 #[derive(Parser, Debug)]
@@ -17,7 +17,7 @@ struct Cli {
     ast: bool,
 }
 
-fn main() -> InterpreterResult<()> {
+fn main() -> CompiletimeResult<()> {
     let cli = Cli::parse();
 
     match cli.path {
@@ -32,20 +32,20 @@ fn main() -> InterpreterResult<()> {
     Ok(())
 }
 
-fn run_file(path: &PathBuf, cli: &Cli) -> InterpreterResult<()> {
+fn run_file(path: &PathBuf, cli: &Cli) -> CompiletimeResult<()> {
     let str = fs::read_to_string(path)?;
     run(&str, cli)?;
 
     Ok(())
 }
 
-fn run(source: &str, cli: &Cli) -> InterpreterResult<()> {
+fn run(source: &str, cli: &Cli) -> CompiletimeResult<()> {
     let mut scanner = Scanner::new(source);
     let tokens = scanner.scan_tokens();
     todo!()
 }
 
-fn run_prompt(cli: &Cli) -> InterpreterResult<()> {
+fn run_prompt(cli: &Cli) -> CompiletimeResult<()> {
     use std::io::{self, Write};
 
     let stdin = io::stdin();
