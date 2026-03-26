@@ -31,9 +31,9 @@ impl Parser {
 
     fn declaration(&mut self) -> Option<Stmt> {
         let res = if self.match_token(&[Var]) {
-            self.var_declaration().and_then(|_| self.statement())
+            self.var_declaration()
         } else {
-            unreachable!()
+            self.statement()
         };
 
         match res {

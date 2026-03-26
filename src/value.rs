@@ -5,8 +5,9 @@ use std::{
     ops::{Add, Div, Mul, Neg, Not, Sub},
 };
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Default)]
 pub enum Value {
+    #[default]
     Nil,
     Bool(bool),
     Number(f64),

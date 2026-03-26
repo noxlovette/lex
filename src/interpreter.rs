@@ -1,7 +1,17 @@
-use crate::{Expr, RuntimeResult, Stmt, TokenType, Value};
-pub struct Interpreter;
+use std::ops::Deref;
+
+use crate::{Environment, Expr, RuntimeResult, Stmt, TokenType, Value};
+
+pub struct Interpreter {
+    environment: Environment,
+}
 
 impl Interpreter {
+    pub fn new() -> Self {
+        Self {
+            environment: Environment::new(),
+        }
+    }
     pub fn interpret(&mut self, statements: &[Stmt]) -> RuntimeResult<()> {
         for stmt in statements {
             self.execute(stmt)?;
@@ -14,7 +24,7 @@ impl Interpreter {
         use TokenType::*;
         match expr {
             Literal { value } => value.into(),
-            Grouping { expression } => Ok(self.eval(&expression)?),
+            Grouping { expression } => self.eval(&expression),
             Unary { operator, right } => {
                 let right = self.eval(&right)?;
                 match operator.token_type {
@@ -44,6 +54,7 @@ impl Interpreter {
                     _ => unreachable!(),
                 }
             }
+            Variable { name } => self.environment.get(name),
             _ => unimplemented!(),
         }
     }
@@ -57,6 +68,16 @@ impl Interpreter {
             Stmt::Print { expression } => {
                 let value = self.eval(expression)?;
                 println!("{value}");
+                Ok(())
+            }
+            Stmt::Var { name, initializer } => {
+                let value = if let Some(i) = initializer.deref() {
+                    Some(self.eval(i)?)
+                } else {
+                    None
+                };
+
+                self.environment.define(name.lexeme.clone(), value);
                 Ok(())
             }
 

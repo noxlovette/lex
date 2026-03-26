@@ -7,14 +7,6 @@ use std::{fs, path::PathBuf};
 pub struct Cli {
     /// Path to a .lox file. If ommitted, start the REPL.
     path: Option<PathBuf>,
-
-    /// Print tokens and exit
-    #[arg(long)]
-    tokens: bool,
-
-    /// Print AST and exit
-    #[arg(long)]
-    ast: bool,
 }
 
 impl Cli {
@@ -33,17 +25,17 @@ impl Cli {
 
     fn run_file(&self, path: &PathBuf) -> anyhow::Result<()> {
         let str = fs::read_to_string(path)?;
-        self.run(&str)?;
+        let mut interpreter = Interpreter::new();
+        self.run(&str, &mut interpreter)?;
 
         Ok(())
     }
 
-    fn run(&self, source: &str) -> anyhow::Result<()> {
+    fn run(&self, source: &str, interpreter: &mut Interpreter) -> anyhow::Result<()> {
         let scanner = Scanner::new(source);
         let tokens = scanner.scan_tokens()?;
         let mut parser = Parser::new(tokens);
         let statements = parser.parse()?;
-        let mut interpreter = Interpreter;
 
         interpreter.interpret(&statements)?;
 
@@ -55,6 +47,7 @@ impl Cli {
 
         let stdin = io::stdin();
         let mut line = String::new();
+        let mut interpreter = Interpreter::new();
 
         loop {
             print!("> ");
@@ -66,7 +59,7 @@ impl Cli {
                 break; // EOF
             }
 
-            self.run(&line)?;
+            self.run(&line, &mut interpreter)?;
         }
 
         Ok(())

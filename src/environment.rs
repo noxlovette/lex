@@ -1,23 +1,24 @@
-use crate::{Literal, RuntimeError, RuntimeResult, Token};
+use crate::{RuntimeError, RuntimeResult, Token, Value};
 use std::collections::HashMap;
 
+#[derive(Debug, Clone)]
 pub struct Environment {
-    values: HashMap<String, Literal>,
+    values: HashMap<String, Value>,
 }
 
 impl Environment {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             values: HashMap::new(),
         }
     }
 
-    fn define(&mut self, k: String, v: Literal) {
-        self.values.insert(k, v);
+    pub fn define(&mut self, k: String, v: Option<Value>) {
+        self.values.insert(k, v.unwrap_or_default());
     }
 
-    fn get(&self, name: Token) -> RuntimeResult<Literal> {
-        let lexeme = name.lexeme;
+    pub fn get(&self, name: &Token) -> RuntimeResult<Value> {
+        let lexeme = name.lexeme.clone();
         Ok(self
             .values
             .get(&lexeme)
