@@ -34,4 +34,7 @@ pub enum CompiletimeError {
 pub enum RuntimeError {
     #[error("Type Error: {message:?}. Found: {value:?}")]
     TypeError { message: String, value: Value },
+
+    #[error("Undefined variable '{lexeme:?}'")]
+    Undefined { lexeme: String },
 }

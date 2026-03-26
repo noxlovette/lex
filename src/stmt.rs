@@ -10,7 +10,7 @@ pub enum Stmt {
     },
     Var {
         name: Token,
-        initializer: Box<Expr>,
+        initializer: Box<Option<Expr>>,
     },
     Block {
         statements: Vec<Stmt>,

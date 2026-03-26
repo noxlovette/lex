@@ -21,10 +21,46 @@ impl Parser {
         let mut statements = Vec::new();
 
         while !self.is_at_end() {
-            statements.push(self.statement()?);
+            if let Some(stmt) = self.declaration() {
+                statements.push(stmt);
+            }
         }
 
         Ok(statements)
+    }
+
+    fn declaration(&mut self) -> Option<Stmt> {
+        let res = if self.match_token(&[Var]) {
+            self.var_declaration().and_then(|_| self.statement())
+        } else {
+            unreachable!()
+        };
+
+        match res {
+            Ok(stmt) => Some(stmt),
+            Err(e) => {
+                eprintln!("{}", e);
+                self.synchronize();
+                None
+            }
+        }
+    }
+
+    fn var_declaration(&mut self) -> CompiletimeResult<Stmt> {
+        let name = self.consume(&Identifier, "Expect variable name.")?;
+
+        let initializer = if self.match_token(&[Equal]) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+
+        self.consume(&Semicolon, "Expect ';' after variable declaration")?;
+
+        Ok(Stmt::Var {
+            name,
+            initializer: Box::new(initializer),
+        })
     }
 
     fn statement(&mut self) -> CompiletimeResult<Stmt> {
@@ -150,6 +186,10 @@ impl Parser {
             let expression = self.expression()?.into_box();
             self.consume(&RightParen, "Expect ')' after expression")?;
             Ok(Expr::Grouping { expression })
+        } else if self.match_token(&[Identifier]) {
+            Ok(Expr::Variable {
+                name: self.previous(),
+            })
         } else {
             Err(self.error("Unknown token"))
         }
