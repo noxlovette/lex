@@ -1,7 +1,7 @@
 use lex::Scanner;
 
 fn scan_token_strings(source: &str) -> Vec<String> {
-    let mut scanner = Scanner::new(source);
+    let scanner = Scanner::new(source);
 
     scanner
         .scan_tokens()
@@ -55,7 +55,7 @@ fn test_positive_case() {
 #[test]
 fn test_unexpected_character() {
     let source = include_str!("test_files/scanner/unexpected_character.lex");
-    let mut scanner = Scanner::new(source);
+    let scanner = Scanner::new(source);
 
     let error = match scanner.scan_tokens() {
         Ok(_) => panic!("expected scanner error for unexpected character"),
@@ -68,7 +68,7 @@ fn test_unexpected_character() {
 #[test]
 fn test_unterminated_string() {
     let source = include_str!("test_files/scanner/unterminated_string.lex");
-    let mut scanner = Scanner::new(source);
+    let scanner = Scanner::new(source);
 
     let error = match scanner.scan_tokens() {
         Ok(_) => panic!("expected scanner error for unterminated string"),

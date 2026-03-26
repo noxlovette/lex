@@ -1,3 +1,4 @@
+mod cli;
 mod error;
 mod expression;
 mod interpreter;
@@ -6,6 +7,7 @@ mod scanner;
 mod token;
 mod value;
 
+pub use cli::*;
 pub use error::*;
 pub use expression::*;
 pub use interpreter::*;

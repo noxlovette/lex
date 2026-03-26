@@ -1,20 +1,14 @@
 use crate::token::Token;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
-use std::rc::Rc;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum Literal {
     Number(f64),
     String(String),
     Bool(bool),
+    #[default]
     Nil,
-}
-
-impl Default for Literal {
-    fn default() -> Self {
-        Self::Nil
-    }
 }
 
 impl Display for Literal {
@@ -167,7 +161,7 @@ impl AstPrinter {
         }
     }
 
-    fn parenthesize(&self, name: &str, exprs: &[&Box<Expr>]) -> String {
+    fn parenthesize(&self, name: &str, exprs: &[&Expr]) -> String {
         let mut out = String::new();
         out.push('(');
         out.push_str(name);

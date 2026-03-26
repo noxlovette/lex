@@ -18,11 +18,18 @@ impl Parser {
 
 impl Parser {
     pub fn parse(&mut self) -> Option<Expr> {
-        self.expression().ok()
+        match self.expression() {
+            Ok(expr) => Some(expr),
+            Err(e) => {
+                eprintln!("{}", e);
+                self.synchronize();
+                None
+            }
+        }
     }
 
     fn expression(&mut self) -> CompiletimeResult<Expr> {
-        Ok(self.equality()?)
+        self.equality()
     }
 
     fn equality(&mut self) -> CompiletimeResult<Expr> {
@@ -32,7 +39,7 @@ impl Parser {
             let right = self.comparison()?;
             expr = Expr::Binary {
                 left: expr.into_box(),
-                operator: operator,
+                operator,
                 right: right.into_box(),
             }
         }
@@ -48,7 +55,7 @@ impl Parser {
             let right = self.term()?.into_box();
             expr = Expr::Binary {
                 left: expr.into_box(),
-                operator: operator,
+                operator,
                 right,
             }
         }
@@ -64,7 +71,7 @@ impl Parser {
             let right = self.factor()?.into_box();
             expr = Expr::Binary {
                 left: expr.into_box(),
-                operator: operator,
+                operator,
                 right,
             }
         }
@@ -80,7 +87,7 @@ impl Parser {
             let right = self.unary()?.into_box();
             expr = Expr::Binary {
                 left: expr.into_box(),
-                operator: operator,
+                operator,
                 right,
             }
         }
@@ -125,7 +132,7 @@ impl Parser {
     }
 
     fn consume(&mut self, token_type: &TokenType, msg: &str) -> CompiletimeResult<Token> {
-        if self.check(&token_type) {
+        if self.check(token_type) {
             Ok(self.advance().clone())
         } else {
             Err(self.error(msg))

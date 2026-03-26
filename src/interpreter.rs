@@ -1,8 +1,15 @@
-use crate::{Expr, RuntimeError, RuntimeResult, TokenType, Value};
+use crate::{Expr, RuntimeResult, TokenType, Value};
 pub struct Interpreter;
 
 impl Interpreter {
-    pub fn eval(expr: Box<Expr>) -> RuntimeResult<Value> {
+    pub fn interpret(expr: Box<Expr>) -> RuntimeResult<()> {
+        let value = Self::eval(expr)?;
+        println!("{value}");
+
+        Ok(())
+    }
+
+    fn eval(expr: Box<Expr>) -> RuntimeResult<Value> {
         use Expr::*;
         use TokenType::*;
         match *expr {
@@ -37,7 +44,7 @@ impl Interpreter {
                     _ => unreachable!(),
                 }
             }
-            _ => Err(RuntimeError::TypeError("Not Implemented".to_string())),
+            _ => unimplemented!(),
         }
     }
 }

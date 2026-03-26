@@ -1,6 +1,8 @@
 use std::io;
 use thiserror::Error;
 
+use crate::Value;
+
 pub type CompiletimeResult<T> = Result<T, CompiletimeError>;
 pub type RuntimeResult<T> = Result<T, RuntimeError>;
 
@@ -30,6 +32,6 @@ pub enum CompiletimeError {
 
 #[derive(Debug, Error)]
 pub enum RuntimeError {
-    #[error("Type Error: {0:?}")]
-    TypeError(String),
+    #[error("Type Error: {message:?}. Found: {value:?}")]
+    TypeError { message: String, value: Value },
 }

@@ -1,10 +1,11 @@
 use crate::{Literal, RuntimeError, RuntimeResult};
 use std::{
     cmp::Ordering,
+    fmt::Display,
     ops::{Add, Div, Mul, Neg, Not, Sub},
 };
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Value {
     Nil,
     Bool(bool),
@@ -12,6 +13,23 @@ pub enum Value {
     String(String),
 }
 
+impl Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use Value::*;
+        match self {
+            Number(n) => {
+                let text = n.to_string();
+                let trimmed = text.trim_end_matches(".0");
+                write!(f, "{trimmed}")
+            }
+            String(s) => {
+                write!(f, "{s}")
+            }
+            Bool(b) => write!(f, "{b}"),
+            Nil => write!(f, "nil"),
+        }
+    }
+}
 impl From<Literal> for Value {
     fn from(value: Literal) -> Self {
         use Literal::*;
@@ -37,9 +55,10 @@ impl Neg for Value {
     fn neg(self) -> Self::Output {
         match self {
             Self::Number(a) => Ok(Value::Number(-a)),
-            _ => Err(RuntimeError::TypeError(
-                "Tried to apply '-' operator on a non-number".to_string(),
-            )),
+            _ => Err(RuntimeError::TypeError {
+                message: "Tried to apply '-' operator on a non-number".to_string(),
+                value: self,
+            }),
         }
     }
 }
@@ -71,9 +90,10 @@ impl Add for Value {
         match (self, rhs) {
             (Self::Number(a), Self::Number(b)) => Ok(Self::Number(a + b)),
             (Self::String(a), Self::String(b)) => Ok(Self::String(a + &b)),
-            _ => Err(RuntimeError::TypeError(
-                "Operands must be either strings or numbers".to_string(),
-            )),
+            (left, _right) => Err(RuntimeError::TypeError {
+                message: "Operands must be either strings or numbers".to_string(),
+                value: left,
+            }),
         }
     }
 }
@@ -137,9 +157,10 @@ macro_rules! impl_numeric_binop {
             fn $method(self, rhs: Self) -> Self::Output {
                 match (self, rhs) {
                     (Self::Number(a), Self::Number(b)) => Ok(Self::Number(a $op b)),
-                    _ => Err(RuntimeError::TypeError(
-                        "Operands must be numbers".to_string(),
-                    )),
+                    (left, _right) => Err(RuntimeError::TypeError {
+                    message:    "Operands must be numbers".to_string(),
+                    value: left
+                    }),
                 }
             }
         }
