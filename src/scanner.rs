@@ -20,7 +20,7 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    pub fn scan_tokens(&mut self) -> InterpreterResult<&Vec<Token>> {
+    pub fn scan_tokens(mut self) -> InterpreterResult<Vec<Token>> {
         while !&self.is_at_end() {
             self.start = self.current;
             self.scan_token()?;
@@ -29,7 +29,7 @@ impl<'a> Scanner<'a> {
         self.tokens
             .push(Token::new(TokenType::Eof, "", None, self.line));
 
-        Ok(&self.tokens)
+        Ok(self.tokens)
     }
 
     fn scan_token(&mut self) -> InterpreterResult<()> {

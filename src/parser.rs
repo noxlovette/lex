@@ -17,6 +17,10 @@ impl Parser {
 }
 
 impl Parser {
+    pub fn parse(&mut self) -> Option<Expr> {
+        self.expression().ok()
+    }
+
     fn expression(&mut self) -> InterpreterResult<Expr> {
         Ok(self.equality()?)
     }
@@ -174,5 +178,29 @@ impl Parser {
 
     fn previous(&self) -> Token {
         self.tokens.get(self.current - 1).unwrap().clone()
+    }
+
+    fn synchronize(&mut self) {
+        self.advance();
+
+        while !self.is_at_end() {
+            if self.previous().token_type == TokenType::Semicolon {
+                return;
+            }
+
+            match self.peek().token_type {
+                TokenType::Class
+                | TokenType::Fun
+                | TokenType::Var
+                | TokenType::For
+                | TokenType::If
+                | TokenType::While
+                | TokenType::Print
+                | TokenType::Return => return,
+                _ => {
+                    self.advance();
+                }
+            }
+        }
     }
 }
