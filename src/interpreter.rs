@@ -27,6 +27,13 @@ impl Interpreter {
                     Minus => Ok((left - right)?),
                     Slash => Ok((left / right)?),
                     Star => Ok((left * right)?),
+                    Plus => Ok((left + right)?),
+                    Greater => Ok((left > right).into()),
+                    GreaterEqual => Ok((left >= right).into()),
+                    Less => Ok((left < right).into()),
+                    LessEqual => Ok((left <= right).into()),
+                    BangEqual => Ok((left != right).into()),
+                    EqualEqual => Ok((left == right).into()),
                     _ => unreachable!(),
                 }
             }

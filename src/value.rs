@@ -1,6 +1,10 @@
 use crate::{Literal, RuntimeError, RuntimeResult};
-use std::ops::{Div, Mul, Neg, Not, Sub};
+use std::{
+    cmp::Ordering,
+    ops::{Add, Div, Mul, Neg, Not, Sub},
+};
 
+#[derive(PartialEq, Debug)]
 pub enum Value {
     Nil,
     Bool(bool),
@@ -60,6 +64,71 @@ impl IsTruthy for Value {
         }
     }
 }
+
+impl Add for Value {
+    type Output = RuntimeResult<Self>;
+    fn add(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (Self::Number(a), Self::Number(b)) => Ok(Self::Number(a + b)),
+            (Self::String(a), Self::String(b)) => Ok(Self::String(a + &b)),
+            _ => Err(RuntimeError::TypeError(
+                "Operands must be either strings or numbers".to_string(),
+            )),
+        }
+    }
+}
+
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self, other) {
+            (Value::Number(a), Value::Number(b)) => a.partial_cmp(b),
+            _ => None,
+        }
+    }
+}
+
+impl From<bool> for Value {
+    fn from(value: bool) -> Self {
+        Self::Bool(value)
+    }
+}
+
+impl From<String> for Value {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+
+impl From<&str> for Value {
+    fn from(value: &str) -> Self {
+        Value::String(value.to_string())
+    }
+}
+
+impl From<f64> for Value {
+    fn from(value: f64) -> Self {
+        Value::Number(value)
+    }
+}
+
+impl<T> From<Option<T>> for Value
+where
+    T: Into<Value>,
+{
+    fn from(value: Option<T>) -> Self {
+        match value {
+            Some(v) => v.into(),
+            None => Value::Nil,
+        }
+    }
+}
+
+impl From<()> for Value {
+    fn from(_: ()) -> Self {
+        Value::Nil
+    }
+}
+
 macro_rules! impl_numeric_binop {
     ($trait:ident, $method:ident, $op:tt) => {
         impl $trait for Value {
