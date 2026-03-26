@@ -1,5 +1,5 @@
 use crate::token::Token;
-use std::fmt::{Display, write};
+use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
@@ -111,6 +111,11 @@ impl Expr {
             _ => None,
         }
     }
+
+    /// Consumes the value and wraps it in an RC
+    pub fn rc(self) -> Rc<Self> {
+        Rc::new(self)
+    }
 }
 
 /*
@@ -118,7 +123,6 @@ Wrapper around Rc<Expr> that uses pointer-based equality and hashing.
 This allows to use expression references as HashMap keys based on their
 identity (where they are in memory) rather than their content.
  */
-
 #[derive(Clone)]
 pub struct ExprRef(pub Rc<Expr>);
 

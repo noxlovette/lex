@@ -4,7 +4,7 @@ use strum::Display;
 
 #[derive(Clone, Debug)]
 pub struct Token {
-    token_type: TokenType,
+    pub token_type: TokenType,
     pub lexeme: String,
     literal: Option<Literal>,
     line: usize,
@@ -29,7 +29,7 @@ impl Token {
     }
 }
 
-#[derive(Display, Clone, Copy, Debug)]
+#[derive(Display, Clone, Copy, Debug, PartialEq)]
 pub enum TokenType {
     // Single-character tokens.
     LeftParen,
