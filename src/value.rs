@@ -30,14 +30,14 @@ impl Display for Value {
         }
     }
 }
-impl From<Literal> for Value {
-    fn from(value: Literal) -> Self {
+impl From<&Literal> for Value {
+    fn from(value: &Literal) -> Self {
         use Literal::*;
         match value {
             Nil => Self::Nil,
-            Bool(b) => Self::Bool(b),
-            Number(n) => Self::Number(n),
-            String(s) => Self::String(s),
+            Bool(b) => Self::Bool(*b),
+            Number(n) => Self::Number(*n),
+            String(s) => Self::String(s.clone()),
         }
     }
 }
@@ -63,8 +63,8 @@ impl Neg for Value {
     }
 }
 
-impl From<Literal> for RuntimeResult<Value> {
-    fn from(value: Literal) -> Self {
+impl From<&Literal> for RuntimeResult<Value> {
+    fn from(value: &Literal) -> Self {
         Ok(value.into())
     }
 }

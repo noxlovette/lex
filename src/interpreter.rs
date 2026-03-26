@@ -1,22 +1,22 @@
-use crate::{Expr, RuntimeResult, TokenType, Value};
+use crate::{Expr, RuntimeResult, Stmt, TokenType, Value};
 pub struct Interpreter;
 
 impl Interpreter {
-    pub fn interpret(expr: Box<Expr>) -> RuntimeResult<()> {
-        let value = Self::eval(expr)?;
-        println!("{value}");
-
+    pub fn interpret(&mut self, statements: &[Stmt]) -> RuntimeResult<()> {
+        for stmt in statements {
+            self.execute(stmt)?;
+        }
         Ok(())
     }
 
-    fn eval(expr: Box<Expr>) -> RuntimeResult<Value> {
+    fn eval(&mut self, expr: &Expr) -> RuntimeResult<Value> {
         use Expr::*;
         use TokenType::*;
-        match *expr {
+        match expr {
             Literal { value } => value.into(),
-            Grouping { expression } => Ok(Self::eval(expression)?),
+            Grouping { expression } => Ok(self.eval(&expression)?),
             Unary { operator, right } => {
-                let right = Self::eval(right)?;
+                let right = self.eval(&right)?;
                 match operator.token_type {
                     Minus => Ok((-right)?),
                     Bang => Ok(!right),
@@ -28,8 +28,8 @@ impl Interpreter {
                 operator,
                 right,
             } => {
-                let left = Self::eval(left)?;
-                let right = Self::eval(right)?;
+                let left = self.eval(&left)?;
+                let right = self.eval(&right)?;
                 match operator.token_type {
                     Minus => Ok((left - right)?),
                     Slash => Ok((left / right)?),
@@ -44,6 +44,22 @@ impl Interpreter {
                     _ => unreachable!(),
                 }
             }
+            _ => unimplemented!(),
+        }
+    }
+
+    fn execute(&mut self, stmt: &Stmt) -> RuntimeResult<()> {
+        match stmt {
+            Stmt::Expression { expression } => {
+                let _ = self.eval(expression)?;
+                Ok(())
+            }
+            Stmt::Print { expression } => {
+                let value = self.eval(expression)?;
+                println!("{value}");
+                Ok(())
+            }
+
             _ => unimplemented!(),
         }
     }

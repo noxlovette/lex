@@ -1,4 +1,4 @@
-use crate::{CompiletimeError, CompiletimeResult, Expr, Token, TokenType};
+use crate::{CompiletimeError, CompiletimeResult, Expr, Stmt, Token, TokenType};
 use crate::{Literal, TokenType::*};
 
 #[derive(Default)]
@@ -17,15 +17,39 @@ impl Parser {
 }
 
 impl Parser {
-    pub fn parse(&mut self) -> Option<Expr> {
-        match self.expression() {
-            Ok(expr) => Some(expr),
-            Err(e) => {
-                eprintln!("{}", e);
-                self.synchronize();
-                None
-            }
+    pub fn parse(&mut self) -> CompiletimeResult<Vec<Stmt>> {
+        let mut statements = Vec::new();
+
+        while !self.is_at_end() {
+            statements.push(self.statement()?);
         }
+
+        Ok(statements)
+    }
+
+    fn statement(&mut self) -> CompiletimeResult<Stmt> {
+        if self.match_token(&[Print]) {
+            self.print_statement()
+        } else {
+            self.expression_statement()
+        }
+    }
+
+    fn print_statement(&mut self) -> CompiletimeResult<Stmt> {
+        let value = self.expression()?;
+        self.consume(&Semicolon, "Expect ';' after value")?;
+
+        Ok(Stmt::Print {
+            expression: value.into_box(),
+        })
+    }
+
+    fn expression_statement(&mut self) -> CompiletimeResult<Stmt> {
+        let expr = self.expression()?;
+        self.consume(&Semicolon, "Expect ';' after expression")?;
+        Ok(Stmt::Expression {
+            expression: expr.into_box(),
+        })
     }
 
     fn expression(&mut self) -> CompiletimeResult<Expr> {

@@ -42,13 +42,10 @@ impl Cli {
         let scanner = Scanner::new(source);
         let tokens = scanner.scan_tokens()?;
         let mut parser = Parser::new(tokens);
-        let expression = parser.parse();
+        let statements = parser.parse()?;
+        let mut interpreter = Interpreter;
 
-        if let Some(expr) = expression {
-            Interpreter::interpret(expr.into_box())?;
-        } else {
-            eprintln!("Interpreting failed")
-        }
+        interpreter.interpret(&statements)?;
 
         Ok(())
     }

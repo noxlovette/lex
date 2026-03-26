@@ -4,6 +4,7 @@ mod expression;
 mod interpreter;
 mod parser;
 mod scanner;
+mod stmt;
 mod token;
 mod value;
 
@@ -13,5 +14,6 @@ pub use expression::*;
 pub use interpreter::*;
 pub use parser::*;
 pub use scanner::*;
+pub use stmt::*;
 pub use token::*;
 pub use value::*;
