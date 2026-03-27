@@ -133,6 +133,12 @@ impl Interpreter {
                     Ok(())
                 }
             }
+            Stmt::While { condition, body } => {
+                while self.eval(condition)?.is_truthy() {
+                    self.execute(body)?;
+                }
+                Ok(())
+            }
 
             _ => unimplemented!(),
         }
