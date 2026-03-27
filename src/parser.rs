@@ -89,7 +89,7 @@ impl Parser {
     }
 
     fn expression(&mut self) -> CompiletimeResult<Expr> {
-        self.equality()
+        self.assignment()
     }
 
     fn equality(&mut self) -> CompiletimeResult<Expr> {
@@ -105,6 +105,30 @@ impl Parser {
         }
 
         Ok(expr)
+    }
+
+    fn assignment(&mut self) -> CompiletimeResult<Expr> {
+        let expr = self.equality()?;
+
+        if self.match_token(&[Equal]) {
+            let equals = self.previous();
+            let value = self.assignment()?;
+
+            if let Expr::Variable { name } = expr {
+                Ok(Expr::Assign {
+                    name,
+                    value: value.into_box(),
+                })
+            } else {
+                Err(CompiletimeError::ParseError {
+                    line: equals.line,
+                    message: "Invalid assignment target".to_string(),
+                    lexeme: equals.lexeme,
+                })
+            }
+        } else {
+            Ok(expr)
+        }
     }
 
     fn comparison(&mut self) -> CompiletimeResult<Expr> {

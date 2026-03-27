@@ -55,6 +55,11 @@ impl Interpreter {
                 }
             }
             Variable { name } => self.environment.get(name),
+            Assign { name, value } => {
+                let value = self.eval(&value)?;
+                self.environment.assign(name, &value)?;
+                Ok(value)
+            }
             _ => unimplemented!(),
         }
     }

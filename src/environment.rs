@@ -25,4 +25,17 @@ impl Environment {
             .ok_or_else(|| RuntimeError::Undefined { lexeme })?
             .clone())
     }
+
+    pub fn assign(&mut self, name: &Token, value: &Value) -> RuntimeResult<()> {
+        if self.values.contains_key(&name.lexeme) {
+            self.values
+                .entry(name.lexeme.clone())
+                .and_modify(|e| *e = value.clone());
+            Ok(())
+        } else {
+            Err(RuntimeError::Undefined {
+                lexeme: name.lexeme.clone(),
+            })
+        }
+    }
 }
