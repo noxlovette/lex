@@ -1,6 +1,5 @@
-use std::ops::Deref;
-
 use crate::{Environment, Expr, RuntimeResult, Stmt, TokenType, Value};
+use std::ops::Deref;
 
 pub struct Interpreter {
     environment: Environment,
