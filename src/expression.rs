@@ -11,6 +11,11 @@ pub enum Literal {
     Nil,
 }
 
+impl From<bool> for Literal {
+    fn from(value: bool) -> Self {
+        Self::Bool(value)
+    }
+}
 impl Display for Literal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use Literal::*;

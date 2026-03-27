@@ -5,6 +5,12 @@ pub struct Interpreter {
     environment: Rc<RefCell<Environment>>,
 }
 
+impl Default for Interpreter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Interpreter {
     pub fn new() -> Self {
         Self {
@@ -23,9 +29,9 @@ impl Interpreter {
         use TokenType::*;
         match expr {
             Literal { value } => value.into(),
-            Grouping { expression } => self.eval(&expression),
+            Grouping { expression } => self.eval(expression),
             Unary { operator, right } => {
-                let right = self.eval(&right)?;
+                let right = self.eval(right)?;
                 match operator.token_type {
                     Minus => Ok((-right)?),
                     Bang => Ok(!right),
@@ -37,8 +43,8 @@ impl Interpreter {
                 operator,
                 right,
             } => {
-                let left = self.eval(&left)?;
-                let right = self.eval(&right)?;
+                let left = self.eval(left)?;
+                let right = self.eval(right)?;
                 match operator.token_type {
                     Minus => Ok((left - right)?),
                     Slash => Ok((left / right)?),
@@ -55,7 +61,7 @@ impl Interpreter {
             }
             Variable { name } => self.environment.borrow().get(name),
             Assign { name, value } => {
-                let value = self.eval(&value)?;
+                let value = self.eval(value)?;
                 self.environment.borrow_mut().assign(name, &value)?;
                 Ok(value)
             }
@@ -64,7 +70,7 @@ impl Interpreter {
                 operator,
                 right,
             } => {
-                let left = self.eval(&left)?;
+                let left = self.eval(left)?;
                 if operator.token_type == TokenType::Or {
                     if left.is_truthy() {
                         Ok(left)
@@ -125,8 +131,8 @@ impl Interpreter {
                 then_branch,
                 else_branch,
             } => {
-                if self.eval(&condition)?.is_truthy() {
-                    self.execute(&then_branch)
+                if self.eval(condition)?.is_truthy() {
+                    self.execute(then_branch)
                 } else if let Some(else_b) = else_branch {
                     self.execute(else_b)
                 } else {
