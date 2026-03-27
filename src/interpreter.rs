@@ -59,6 +59,26 @@ impl Interpreter {
                 self.environment.borrow_mut().assign(name, &value)?;
                 Ok(value)
             }
+            Logical {
+                left,
+                operator,
+                right,
+            } => {
+                let left = self.eval(&left)?;
+                if operator.token_type == TokenType::Or {
+                    if left.is_truthy() {
+                        Ok(left)
+                    } else {
+                        self.eval(right)
+                    }
+                } else {
+                    if !left.is_truthy() {
+                        Ok(left)
+                    } else {
+                        self.eval(right)
+                    }
+                }
+            }
             _ => unimplemented!(),
         }
     }

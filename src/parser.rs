@@ -105,6 +105,36 @@ impl Parser {
         })
     }
 
+    fn or_expr(&mut self) -> CompiletimeResult<Expr> {
+        let mut expr = self.and_expr()?;
+        while self.match_token(&[Or]) {
+            let operator = self.previous();
+            let right = self.and_expr()?;
+            expr = Expr::Logical {
+                left: expr.into_box(),
+                operator,
+                right: right.into_box(),
+            }
+        }
+        Ok(expr)
+    }
+
+    fn and_expr(&mut self) -> CompiletimeResult<Expr> {
+        let mut expr = self.equality()?;
+
+        while self.match_token(&[And]) {
+            let operator = self.previous();
+            let right = self.equality()?;
+            expr = Expr::Logical {
+                left: expr.into_box(),
+                operator,
+                right: right.into_box(),
+            }
+        }
+
+        Ok(expr)
+    }
+
     fn block(&mut self) -> CompiletimeResult<Vec<Stmt>> {
         let mut statements = Vec::new();
 
@@ -147,7 +177,7 @@ impl Parser {
     }
 
     fn assignment(&mut self) -> CompiletimeResult<Expr> {
-        let expr = self.equality()?;
+        let expr = self.or_expr()?;
 
         if self.match_token(&[Equal]) {
             let equals = self.previous();
