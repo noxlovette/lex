@@ -39,3 +39,9 @@ pub enum Stmt {
         methods: Vec<Stmt>,
     },
 }
+
+impl Stmt {
+    pub fn into_box(self) -> Box<Self> {
+        Box::new(self)
+    }
+}

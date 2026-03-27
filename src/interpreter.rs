@@ -1,4 +1,4 @@
-use crate::{Environment, Expr, RuntimeResult, Stmt, TokenType, Value};
+use crate::{Environment, Expr, IsTruthy, RuntimeResult, Stmt, TokenType, Value};
 use std::{cell::RefCell, ops::Deref, rc::Rc};
 
 pub struct Interpreter {
@@ -99,6 +99,19 @@ impl Interpreter {
 
                 self.environment = prev;
                 res
+            }
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                if self.eval(&condition)?.is_truthy() {
+                    self.execute(&then_branch)
+                } else if let Some(else_b) = else_branch {
+                    self.execute(else_b)
+                } else {
+                    Ok(())
+                }
             }
 
             _ => unimplemented!(),

@@ -70,6 +70,8 @@ impl Parser {
             Ok(Stmt::Block {
                 statements: self.block()?,
             })
+        } else if self.match_token(&[If]) {
+            self.if_statement()
         } else {
             self.expression_statement()
         }
@@ -81,6 +83,25 @@ impl Parser {
 
         Ok(Stmt::Print {
             expression: value.into_box(),
+        })
+    }
+
+    fn if_statement(&mut self) -> CompiletimeResult<Stmt> {
+        self.consume(&LeftParen, "Expect '(' after 'if'")?;
+        let condition = self.expression()?;
+        self.consume(&RightParen, "Expect ')' after if condition")?;
+
+        let then_branch = self.statement()?;
+        let else_branch = if self.match_token(&[Else]) {
+            Some(self.statement()?.into_box())
+        } else {
+            None
+        };
+
+        Ok(Stmt::If {
+            condition: condition.into_box(),
+            then_branch: then_branch.into_box(),
+            else_branch,
         })
     }
 
