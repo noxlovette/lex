@@ -1,14 +1,14 @@
 use crate::{Environment, Expr, RuntimeResult, Stmt, TokenType, Value};
-use std::ops::Deref;
+use std::{cell::RefCell, ops::Deref, rc::Rc};
 
 pub struct Interpreter {
-    environment: Environment,
+    environment: Rc<RefCell<Environment>>,
 }
 
 impl Interpreter {
     pub fn new() -> Self {
         Self {
-            environment: Environment::new(),
+            environment: Rc::new(RefCell::new(Environment::new())),
         }
     }
     pub fn interpret(&mut self, statements: &[Stmt]) -> RuntimeResult<()> {
@@ -53,10 +53,10 @@ impl Interpreter {
                     _ => unreachable!(),
                 }
             }
-            Variable { name } => self.environment.get(name),
+            Variable { name } => self.environment.borrow().get(name),
             Assign { name, value } => {
                 let value = self.eval(&value)?;
-                self.environment.assign(name, &value)?;
+                self.environment.borrow_mut().assign(name, &value)?;
                 Ok(value)
             }
             _ => unimplemented!(),
@@ -81,8 +81,24 @@ impl Interpreter {
                     None
                 };
 
-                self.environment.define(name.lexeme.clone(), value);
+                self.environment
+                    .borrow_mut()
+                    .define(name.lexeme.clone(), value);
                 Ok(())
+            }
+            Stmt::Block { statements } => {
+                let prev = self.environment.clone();
+                self.environment = Environment::new().with_enclosing(prev.clone()).rc();
+
+                let res: RuntimeResult<()> = (|| {
+                    for stmt in statements {
+                        self.execute(stmt)?;
+                    }
+                    Ok(())
+                })();
+
+                self.environment = prev;
+                res
             }
 
             _ => unimplemented!(),

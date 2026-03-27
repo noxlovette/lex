@@ -14,8 +14,12 @@ impl Environment {
         }
     }
 
-    pub fn with_enclosing(mut self, enclosing: Environment) -> Self {
-        self.enclosing = Some(Rc::new(RefCell::new(enclosing)));
+    pub fn rc(self) -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(self))
+    }
+
+    pub fn with_enclosing(mut self, enclosing: Rc<RefCell<Environment>>) -> Self {
+        self.enclosing = Some(enclosing);
         self
     }
 
