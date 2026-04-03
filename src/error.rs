@@ -1,7 +1,7 @@
 use std::io;
 use thiserror::Error;
 
-use crate::Value;
+use crate::{Token, Value};
 
 pub type CompiletimeResult<T> = Result<T, CompiletimeError>;
 pub type RuntimeResult<T> = Result<T, RuntimeError>;
@@ -34,7 +34,10 @@ pub enum CompiletimeError {
 pub enum RuntimeError {
     #[error("Type Error: {message:?}. Found: {value:?}")]
     TypeError { message: String, value: Value },
-
     #[error("Undefined variable '{lexeme:?}'")]
     Undefined { lexeme: String },
+    #[error("Expression not callable {0}")]
+    NotCallable(Token),
+    #[error("Expected {expected:?} arguments but got {got:?}")]
+    Arity { expected: usize, got: usize },
 }

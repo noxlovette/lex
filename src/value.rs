@@ -1,8 +1,9 @@
-use crate::{Literal, RuntimeError, RuntimeResult};
+use crate::{Callable, Literal, RuntimeError, RuntimeResult};
 use std::{
     cmp::Ordering,
     fmt::Display,
     ops::{Add, Div, Mul, Neg, Not, Sub},
+    time::UNIX_EPOCH,
 };
 
 #[derive(PartialEq, Debug, Clone, Default)]
@@ -12,6 +13,37 @@ pub enum Value {
     Bool(bool),
     Number(f64),
     String(String),
+    Native(NativeFunction),
+}
+
+// TODO: TRANSFORM INTO AN ENUM
+#[derive(PartialEq, Debug, Clone, Default)]
+pub struct NativeFunction {
+    arity: usize,
+}
+
+impl ToString for NativeFunction {
+    fn to_string(&self) -> String {
+        String::from("<native fn>")
+    }
+}
+
+impl Callable for NativeFunction {
+    fn call(
+        &self,
+        _interpreter: &mut crate::Interpreter,
+        _args: Vec<Value>,
+    ) -> RuntimeResult<Value> {
+        Ok(Value::Number(
+            std::time::SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("Safe to expect.")
+                .as_secs_f64(),
+        ))
+    }
+    fn arity(&self) -> usize {
+        self.arity
+    }
 }
 
 impl Display for Value {
@@ -28,6 +60,7 @@ impl Display for Value {
             }
             Bool(b) => write!(f, "{b}"),
             Nil => write!(f, "nil"),
+            Native(n) => write!(f, "{}", n.to_string()),
         }
     }
 }

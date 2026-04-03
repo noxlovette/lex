@@ -1,6 +1,7 @@
-use crate::{Environment, Expr, IsTruthy, RuntimeResult, Stmt, TokenType, Value};
+use crate::{Environment, Expr, IsTruthy, RuntimeError, RuntimeResult, Stmt, TokenType, Value};
 use std::{cell::RefCell, ops::Deref, rc::Rc};
 
+#[derive(Debug)]
 pub struct Interpreter {
     environment: Rc<RefCell<Environment>>,
 }
@@ -85,6 +86,32 @@ impl Interpreter {
                     }
                 }
             }
+            Call {
+                callee,
+                paren,
+                arguments,
+            } => {
+                let callee = self.eval(callee)?;
+                let mut args = Vec::new();
+                for arg in arguments {
+                    args.push(self.eval(arg)?);
+                }
+
+                match callee {
+                    Value::Native(f) => {
+                        if f.arity() != args.len() {
+                            return Err(RuntimeError::Arity {
+                                expected: f.arity(),
+                                got: args.len(),
+                            });
+                        }
+
+                        f.call(self, args)?;
+                    }
+                    _ => return Err(RuntimeError::NotCallable(paren.to_owned())),
+                }
+                todo!()
+            }
             _ => unimplemented!(),
         }
     }
@@ -149,4 +176,9 @@ impl Interpreter {
             _ => unimplemented!(),
         }
     }
+}
+
+pub(crate) trait Callable: ToString {
+    fn call(&self, interpreter: &mut Interpreter, args: Vec<Value>) -> RuntimeResult<Value>;
+    fn arity(&self) -> usize;
 }
