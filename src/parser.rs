@@ -32,6 +32,8 @@ impl Parser {
     fn declaration(&mut self) -> Option<Stmt> {
         let res = if self.match_token(&[Var]) {
             self.var_declaration()
+        } else if self.match_token(&[Fun]) {
+            self.function("function")
         } else {
             self.statement()
         };
@@ -44,6 +46,30 @@ impl Parser {
                 None
             }
         }
+    }
+
+    fn function(&mut self, kind: &str) -> CompiletimeResult<Stmt> {
+        let name = self.consume(&Identifier, format!("Expect {kind} name").as_str())?;
+
+        let mut params = Vec::new();
+
+        if !self.check(&RightParen) {
+            while self.match_token(&[Comma]) {
+                if params.len() >= 255 {
+                    println!("Can't have more than 255 params {}", self.peek())
+                }
+                params.push(self.consume(&Identifier, "Expect parameter name")?);
+            }
+        }
+
+        self.consume(&RightParen, "Expect ')' after parameters")?;
+        self.consume(
+            &LeftBrace,
+            format!("Expect opening brace before {} body", kind).as_str(),
+        )?;
+        let body = self.block()?;
+
+        Ok(Stmt::Function { name, params, body })
     }
 
     fn var_declaration(&mut self) -> CompiletimeResult<Stmt> {
