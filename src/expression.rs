@@ -57,7 +57,7 @@ impl Hash for Literal {
     }
 }
 
-#[derive(Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
     Unary {
         operator: Token,

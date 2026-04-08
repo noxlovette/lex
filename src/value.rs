@@ -1,4 +1,4 @@
-use crate::{Callable, Literal, RuntimeError, RuntimeResult};
+use crate::{Callable, Environment, Literal, RuntimeError, RuntimeResult, Stmt};
 use std::{
     cmp::Ordering,
     fmt::Display,
@@ -14,6 +14,7 @@ pub enum Value {
     Number(f64),
     String(String),
     Native(NativeFunction),
+    Function(Function),
 }
 
 // TODO: TRANSFORM INTO AN ENUM
@@ -22,15 +23,75 @@ pub struct NativeFunction {
     arity: usize,
 }
 
+#[derive(PartialEq, Debug, Clone)]
+pub struct Function {
+    pub declaration: Stmt,
+}
+
+impl Callable for Function {
+    fn arity(&self) -> usize {
+        match &self.declaration {
+            Stmt::Function {
+                name: _,
+                params,
+                body: _,
+            } => params.len(),
+            _ => unreachable!(),
+        }
+    }
+    fn call(self, interpreter: &mut crate::Interpreter, args: Vec<Value>) -> RuntimeResult<Value> {
+        match self.declaration {
+            Stmt::Function {
+                name: _,
+                params,
+                body,
+            } => {
+                let prev = interpreter.environment.clone();
+                interpreter.environment = Environment::new().with_enclosing(prev.clone()).rc();
+
+                for (i, p) in params.iter().enumerate() {
+                    interpreter
+                        .environment
+                        .borrow_mut()
+                        .define(p.lexeme.clone(), args.get(i).cloned());
+                }
+
+                interpreter.execute(&Stmt::Block { statements: body })?;
+
+                interpreter.environment = prev;
+
+                Ok(Value::Nil)
+            }
+            _ => {
+                return Err(RuntimeError::NotCallable(
+                    "Tried to call function with no declaration".into(),
+                ));
+            }
+        }
+    }
+}
+
 impl ToString for NativeFunction {
     fn to_string(&self) -> String {
         String::from("<native fn>")
     }
 }
 
+impl ToString for Function {
+    fn to_string(&self) -> String {
+        match &self.declaration {
+            Stmt::Function {
+                name,
+                params: _,
+                body: _,
+            } => format!("<fn {}>", name.lexeme),
+            _ => unreachable!(),
+        }
+    }
+}
 impl Callable for NativeFunction {
     fn call(
-        &self,
+        self,
         _interpreter: &mut crate::Interpreter,
         _args: Vec<Value>,
     ) -> RuntimeResult<Value> {
@@ -61,6 +122,7 @@ impl Display for Value {
             Bool(b) => write!(f, "{b}"),
             Nil => write!(f, "nil"),
             Native(n) => write!(f, "{}", n.to_string()),
+            Function(d) => write!(f, "{}", d.to_string()),
         }
     }
 }

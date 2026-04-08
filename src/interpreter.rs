@@ -1,9 +1,11 @@
-use crate::{Environment, Expr, IsTruthy, RuntimeError, RuntimeResult, Stmt, TokenType, Value};
+use crate::{
+    Environment, Expr, Function, IsTruthy, RuntimeError, RuntimeResult, Stmt, TokenType, Value,
+};
 use std::{cell::RefCell, ops::Deref, rc::Rc};
 
 #[derive(Debug)]
 pub struct Interpreter {
-    environment: Rc<RefCell<Environment>>,
+    pub(crate) environment: Rc<RefCell<Environment>>,
 }
 
 impl Default for Interpreter {
@@ -18,6 +20,7 @@ impl Interpreter {
             environment: Rc::new(RefCell::new(Environment::new())),
         }
     }
+
     pub fn interpret(&mut self, statements: &[Stmt]) -> RuntimeResult<()> {
         for stmt in statements {
             self.execute(stmt)?;
@@ -106,17 +109,25 @@ impl Interpreter {
                             });
                         }
 
-                        f.call(self, args)?;
+                        f.call(self, args)
                     }
-                    _ => return Err(RuntimeError::NotCallable(paren.to_owned())),
+                    Value::Function(f) => {
+                        if f.arity() != args.len() {
+                            return Err(RuntimeError::Arity {
+                                expected: f.arity(),
+                                got: args.len(),
+                            });
+                        }
+                        f.call(self, args)
+                    }
+                    _ => return Err(RuntimeError::NotCallable(paren.lexeme.clone())),
                 }
-                todo!()
             }
             _ => unimplemented!(),
         }
     }
 
-    fn execute(&mut self, stmt: &Stmt) -> RuntimeResult<()> {
+    pub(crate) fn execute(&mut self, stmt: &Stmt) -> RuntimeResult<()> {
         match stmt {
             Stmt::Expression { expression } => {
                 let _ = self.eval(expression)?;
@@ -172,6 +183,19 @@ impl Interpreter {
                 }
                 Ok(())
             }
+            Stmt::Function { name, params, body } => {
+                let function = Value::Function(Function {
+                    declaration: Stmt::Function {
+                        name: name.clone(),
+                        params: params.clone(),
+                        body: body.clone(),
+                    },
+                });
+                self.environment
+                    .borrow_mut()
+                    .define(name.lexeme.to_string(), Some(function));
+                Ok(())
+            }
 
             _ => unimplemented!(),
         }
@@ -179,6 +203,6 @@ impl Interpreter {
 }
 
 pub(crate) trait Callable: ToString {
-    fn call(&self, interpreter: &mut Interpreter, args: Vec<Value>) -> RuntimeResult<Value>;
+    fn call(self, interpreter: &mut Interpreter, args: Vec<Value>) -> RuntimeResult<Value>;
     fn arity(&self) -> usize;
 }

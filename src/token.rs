@@ -2,7 +2,7 @@ use crate::Literal;
 use std::{collections::HashMap, fmt::Display, sync::LazyLock};
 use strum::Display;
 
-#[derive(Clone, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,

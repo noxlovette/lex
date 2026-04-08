@@ -51,18 +51,26 @@ impl Parser {
     fn function(&mut self, kind: &str) -> CompiletimeResult<Stmt> {
         let name = self.consume(&Identifier, format!("Expect {kind} name").as_str())?;
 
+        self.consume(
+            &LeftParen,
+            format!("Expect '(' after {} name", kind).as_str(),
+        )?;
         let mut params = Vec::new();
 
         if !self.check(&RightParen) {
-            while self.match_token(&[Comma]) {
+            loop {
                 if params.len() >= 255 {
-                    println!("Can't have more than 255 params {}", self.peek())
+                    eprintln!("Can't have more than 255 params {}", self.peek())
                 }
                 params.push(self.consume(&Identifier, "Expect parameter name")?);
+
+                if !self.match_token(&[Comma]) {
+                    break;
+                }
             }
         }
-
         self.consume(&RightParen, "Expect ')' after parameters")?;
+
         self.consume(
             &LeftBrace,
             format!("Expect opening brace before {} body", kind).as_str(),
@@ -370,11 +378,15 @@ impl Parser {
     fn finish_call(&mut self, callee: Expr) -> CompiletimeResult<Expr> {
         let mut arguments = Vec::new();
         if !self.check(&RightParen) {
-            while self.match_token(&[Comma]) {
+            loop {
                 if arguments.len() >= 255 {
                     println!("Can't have more than 255 arguments: {}", self.peek());
                 }
                 arguments.push(self.expression()?.into_box());
+
+                if !self.match_token(&[Comma]) {
+                    break;
+                }
             }
         }
 
