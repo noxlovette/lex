@@ -194,6 +194,7 @@ impl Interpreter {
                         params: params.clone(),
                         body: body.clone(),
                     },
+                    closure: self.environment.clone(),
                 });
                 self.environment
                     .borrow_mut()

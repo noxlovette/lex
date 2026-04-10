@@ -1,8 +1,10 @@
 use crate::{Callable, Environment, Literal, RuntimeControl, RuntimeError, RuntimeResult, Stmt};
 use std::{
+    cell::RefCell,
     cmp::Ordering,
     fmt::Display,
     ops::{Add, Div, Mul, Neg, Not, Sub},
+    rc::Rc,
     time::UNIX_EPOCH,
 };
 
@@ -26,6 +28,7 @@ pub struct NativeFunction {
 #[derive(PartialEq, Debug, Clone)]
 pub struct Function {
     pub declaration: Stmt,
+    pub closure: Rc<RefCell<Environment>>,
 }
 
 impl Callable for Function {
@@ -47,7 +50,8 @@ impl Callable for Function {
                 body,
             } => {
                 let prev = interpreter.environment.clone();
-                interpreter.environment = Environment::new().with_enclosing(prev.clone()).rc();
+                interpreter.environment =
+                    Environment::new().with_enclosing(self.closure.clone()).rc();
 
                 for (i, p) in params.iter().enumerate() {
                     interpreter

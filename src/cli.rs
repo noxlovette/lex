@@ -1,4 +1,5 @@
 use crate::{Interpreter, Parser, Scanner};
+use anyhow::anyhow;
 use clap::Parser as ClapParser;
 use std::{fs, path::PathBuf};
 
@@ -37,7 +38,9 @@ impl Cli {
         let mut parser = Parser::new(tokens);
         let statements = parser.parse()?;
 
-        interpreter.interpret(&statements)?;
+        interpreter
+            .interpret(&statements)
+            .map_err(|err| anyhow!(err.to_string()))?;
 
         Ok(())
     }
