@@ -31,7 +31,7 @@ pub enum Stmt {
     },
     Return {
         keyword: Token,
-        value: Box<Expr>,
+        value: Option<Box<Expr>>,
     },
     Class {
         name: Token,

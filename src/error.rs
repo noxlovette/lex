@@ -1,10 +1,37 @@
+use crate::Value;
 use std::io;
 use thiserror::Error;
 
-use crate::Value;
+pub(crate) type CompiletimeResult<T> = Result<T, CompiletimeError>;
+pub(crate) type RuntimeResult<T> = Result<T, RuntimeError>;
+pub(crate) type EvalResult<T> = Result<T, RuntimeControl>;
 
-pub type CompiletimeResult<T> = Result<T, CompiletimeError>;
-pub type RuntimeResult<T> = Result<T, RuntimeError>;
+#[derive(Debug)]
+pub(crate) enum RuntimeControl {
+    Error(RuntimeError),
+    Return(Value),
+}
+
+impl From<RuntimeControl> for RuntimeError {
+    fn from(value: RuntimeControl) -> Self {
+        match value {
+            RuntimeControl::Error(err) => err,
+            RuntimeControl::Return(_) => RuntimeError::ReturnOutsideFunction,
+        }
+    }
+}
+
+impl<T> From<RuntimeError> for EvalResult<T> {
+    fn from(value: RuntimeError) -> Self {
+        Self::Err(RuntimeControl::Error(value))
+    }
+}
+
+impl From<RuntimeError> for RuntimeControl {
+    fn from(value: RuntimeError) -> Self {
+        RuntimeControl::Error(value)
+    }
+}
 
 #[derive(Debug, Error)]
 pub enum CompiletimeError {
@@ -40,4 +67,6 @@ pub enum RuntimeError {
     NotCallable(String),
     #[error("Expected {expected:?} arguments but got {got:?}")]
     Arity { expected: usize, got: usize },
+    #[error("Can't return from top-level code.")]
+    ReturnOutsideFunction,
 }

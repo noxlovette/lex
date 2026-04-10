@@ -1,4 +1,4 @@
-use crate::{Callable, Environment, Literal, RuntimeError, RuntimeResult, Stmt};
+use crate::{Callable, Environment, Literal, RuntimeControl, RuntimeError, RuntimeResult, Stmt};
 use std::{
     cmp::Ordering,
     fmt::Display,
@@ -56,11 +56,14 @@ impl Callable for Function {
                         .define(p.lexeme.clone(), args.get(i).cloned());
                 }
 
-                interpreter.execute(&Stmt::Block { statements: body })?;
-
+                let result = interpreter.execute(&Stmt::Block { statements: body });
                 interpreter.environment = prev;
 
-                Ok(Value::Nil)
+                match result {
+                    Ok(()) => Ok(Value::Nil),
+                    Err(RuntimeControl::Return(value)) => Ok(value),
+                    Err(RuntimeControl::Error(err)) => Err(err),
+                }
             }
             _ => {
                 return Err(RuntimeError::NotCallable(

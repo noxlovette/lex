@@ -1,5 +1,6 @@
 use crate::{
-    Environment, Expr, Function, IsTruthy, RuntimeError, RuntimeResult, Stmt, TokenType, Value,
+    Environment, EvalResult, Expr, Function, IsTruthy, RuntimeControl, RuntimeError, RuntimeResult,
+    Stmt, TokenType, Value,
 };
 use std::{cell::RefCell, ops::Deref, rc::Rc};
 
@@ -28,11 +29,11 @@ impl Interpreter {
         Ok(())
     }
 
-    fn eval(&mut self, expr: &Expr) -> RuntimeResult<Value> {
+    fn eval(&mut self, expr: &Expr) -> EvalResult<Value> {
         use Expr::*;
         use TokenType::*;
         match expr {
-            Literal { value } => value.into(),
+            Literal { value } => Ok(value.into()),
             Grouping { expression } => self.eval(expression),
             Unary { operator, right } => {
                 let right = self.eval(right)?;
@@ -63,7 +64,7 @@ impl Interpreter {
                     _ => unreachable!(),
                 }
             }
-            Variable { name } => self.environment.borrow().get(name),
+            Variable { name } => Ok(self.environment.borrow().get(name)?),
             Assign { name, value } => {
                 let value = self.eval(value)?;
                 self.environment.borrow_mut().assign(name, &value)?;
@@ -103,31 +104,34 @@ impl Interpreter {
                 match callee {
                     Value::Native(f) => {
                         if f.arity() != args.len() {
-                            return Err(RuntimeError::Arity {
+                            return RuntimeError::Arity {
                                 expected: f.arity(),
                                 got: args.len(),
-                            });
+                            }
+                            .into();
                         }
 
-                        f.call(self, args)
+                        Ok(f.call(self, args)?)
                     }
                     Value::Function(f) => {
                         if f.arity() != args.len() {
-                            return Err(RuntimeError::Arity {
+                            return RuntimeError::Arity {
                                 expected: f.arity(),
                                 got: args.len(),
-                            });
+                            }
+                            .into();
                         }
-                        f.call(self, args)
+                        Ok(f.call(self, args)?)
                     }
-                    _ => return Err(RuntimeError::NotCallable(paren.lexeme.clone())),
+                    _ => return RuntimeError::NotCallable(paren.lexeme.clone()).into(),
                 }
             }
+
             _ => unimplemented!(),
         }
     }
 
-    pub(crate) fn execute(&mut self, stmt: &Stmt) -> RuntimeResult<()> {
+    pub(crate) fn execute(&mut self, stmt: &Stmt) -> EvalResult<()> {
         match stmt {
             Stmt::Expression { expression } => {
                 let _ = self.eval(expression)?;
@@ -154,7 +158,7 @@ impl Interpreter {
                 let prev = self.environment.clone();
                 self.environment = Environment::new().with_enclosing(prev.clone()).rc();
 
-                let res: RuntimeResult<()> = (|| {
+                let res: EvalResult<()> = (|| {
                     for stmt in statements {
                         self.execute(stmt)?;
                     }
@@ -195,6 +199,15 @@ impl Interpreter {
                     .borrow_mut()
                     .define(name.lexeme.to_string(), Some(function));
                 Ok(())
+            }
+            Stmt::Return { keyword: _, value } => {
+                let value = if let Some(v) = value {
+                    self.eval(v)?
+                } else {
+                    Value::Nil
+                };
+
+                Err(RuntimeControl::Return(value))
             }
 
             _ => unimplemented!(),

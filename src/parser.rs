@@ -110,9 +110,24 @@ impl Parser {
             self.while_statement()
         } else if self.match_token(&[For]) {
             self.for_statement()
+        } else if self.match_token(&[Return]) {
+            self.return_statement()
         } else {
             self.expression_statement()
         }
+    }
+
+    fn return_statement(&mut self) -> CompiletimeResult<Stmt> {
+        let keyword = self.previous();
+        let value = if !self.check(&Semicolon) {
+            Some(self.expression()?.into_box())
+        } else {
+            None
+        };
+
+        self.consume(&Semicolon, "Expect ';' after return value")?;
+
+        Ok(Stmt::Return { keyword, value })
     }
 
     fn while_statement(&mut self) -> CompiletimeResult<Stmt> {
