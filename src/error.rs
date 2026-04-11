@@ -57,13 +57,17 @@ pub enum CompiletimeError {
     },
     #[error("Cannot read local variable in its own initialiser: {0}")]
     InitializerError(Token),
+    #[error("Already a variable with this name in this scope: {0}")]
+    AlreadyDeclared(Token),
+    #[error("Can't return from top-level code.")]
+    ReturnOutsideFunction,
 }
 
 #[derive(Debug, Error)]
 pub enum RuntimeError {
     #[error("Type Error: {message:?}. Found: {value:?}")]
     TypeError { message: String, value: Value },
-    #[error("Undefined variable '{lexeme:?}'")]
+    #[error("Undefined variable {lexeme:?}")]
     Undefined { lexeme: String },
     #[error("Expression not callable {0}")]
     NotCallable(String),

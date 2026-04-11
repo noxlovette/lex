@@ -57,13 +57,14 @@ impl Hash for Literal {
     }
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Eq, Hash)]
 pub enum Expr {
     Unary {
         operator: Token,
         right: Box<Expr>,
     },
     Assign {
+        id: usize,
         name: Token,
         value: Box<Expr>,
     },
@@ -79,6 +80,7 @@ pub enum Expr {
         value: Literal,
     },
     Variable {
+        id: usize,
         name: Token,
     },
     Logical {
@@ -110,6 +112,13 @@ pub enum Expr {
 }
 
 impl Expr {
+    pub fn id(&self) -> Option<usize> {
+        match self {
+            Expr::Assign { id, .. } | Expr::Variable { id, .. } => Some(*id),
+            _ => None,
+        }
+    }
+
     pub fn as_superclass(&self) -> Option<&Token> {
         match self {
             Expr::Variable { name, .. } => Some(name),

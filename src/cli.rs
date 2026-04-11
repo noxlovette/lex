@@ -1,4 +1,4 @@
-use crate::{Interpreter, Parser, Scanner};
+use crate::{Interpreter, Parser, Resolver, Scanner};
 use anyhow::anyhow;
 use clap::Parser as ClapParser;
 use std::{fs, path::PathBuf};
@@ -37,6 +37,8 @@ impl Cli {
         let tokens = scanner.scan_tokens()?;
         let mut parser = Parser::new(tokens);
         let statements = parser.parse()?;
+        let mut resolver = Resolver::new(interpreter);
+        resolver.resolve_statements(&statements)?;
 
         interpreter
             .interpret(&statements)

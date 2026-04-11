@@ -1,13 +1,36 @@
 use crate::{CompiletimeError, CompiletimeResult, Expr, Interpreter, Stmt, Token};
 use std::{collections::HashMap, ops::Deref};
 
-pub struct Resolver {
-    interpreter: Interpreter,
-    scopes: Vec<HashMap<String, bool>>,
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum FunctionType {
+    None,
+    Function,
 }
 
-impl Resolver {
-    pub fn resolve_statement(&mut self, stmt: &Stmt) -> CompiletimeResult<()> {
+pub struct Resolver<'a> {
+    interpreter: &'a mut Interpreter,
+    scopes: Vec<HashMap<String, bool>>,
+    current_function: FunctionType,
+}
+
+impl<'a> Resolver<'a> {
+    pub fn new(interpreter: &'a mut Interpreter) -> Self {
+        Self {
+            interpreter,
+            scopes: Vec::new(),
+            current_function: FunctionType::None,
+        }
+    }
+
+    pub fn resolve_statements(&mut self, statements: &[Stmt]) -> CompiletimeResult<()> {
+        for stmt in statements {
+            self.resolve_statement(stmt)?;
+        }
+
+        Ok(())
+    }
+
+    fn resolve_statement(&mut self, stmt: &Stmt) -> CompiletimeResult<()> {
         use Stmt::*;
         match stmt {
             Block { statements } => self.resolve_block(statements),
@@ -32,27 +55,21 @@ impl Resolver {
                 Ok(())
             }
             Function {
-                name: _,
-                params,
-                body,
+                name,
+                params: _,
+                body: _,
             } => {
-                self.begin_scope();
-
-                for param in params {
-                    self.declare(param)?;
-                    self.define(param)?;
-                }
-
-                for v in body {
-                    self.resolve_statement(v)?;
-                }
-
-                self.end_scope();
-
+                self.declare(name)?;
+                self.define(name)?;
+                self.resolve_function(stmt, FunctionType::Function)?;
                 Ok(())
             }
             Print { expression } => self.resolve_expression(expression),
             Return { keyword: _, value } => {
+                if self.current_function == FunctionType::None {
+                    return Err(CompiletimeError::ReturnOutsideFunction);
+                }
+
                 if let Some(val) = value {
                     self.resolve_expression(val)?;
                 }
@@ -66,21 +83,17 @@ impl Resolver {
         }
     }
 
-    fn resolve_block(&mut self, block: &Vec<Stmt>) -> CompiletimeResult<()> {
+    pub fn resolve_block(&mut self, block: &[Stmt]) -> CompiletimeResult<()> {
         self.begin_scope();
-
-        for stmt in block {
-            self.resolve_statement(stmt)?;
-        }
-
+        let result = self.resolve_statements(block);
         self.end_scope();
-        Ok(())
+        result
     }
 
     fn resolve_expression(&mut self, expr: &Expr) -> CompiletimeResult<()> {
         use Expr::*;
         match expr {
-            Variable { name } => {
+            Variable { id: _, name } => {
                 if self
                     .scopes
                     .last()
@@ -91,7 +104,11 @@ impl Resolver {
 
                 self.resolve_local(expr, name);
             }
-            Assign { name, value } => {
+            Assign {
+                id: _,
+                name,
+                value,
+            } => {
                 self.resolve_expression(value)?;
                 self.resolve_local(expr, name);
             }
@@ -132,6 +149,38 @@ impl Resolver {
         Ok(())
     }
 
+    fn resolve_function(
+        &mut self,
+        function: &Stmt,
+        function_type: FunctionType,
+    ) -> CompiletimeResult<()> {
+        let enclosing_function = self.current_function;
+        self.current_function = function_type;
+
+        let result = (|| match function {
+            Stmt::Function {
+                name: _,
+                params,
+                body,
+            } => {
+                self.begin_scope();
+
+                for param in params {
+                    self.declare(param)?;
+                    self.define(param)?;
+                }
+
+                let result = self.resolve_statements(body);
+                self.end_scope();
+                result
+            }
+            _ => unreachable!(),
+        })();
+
+        self.current_function = enclosing_function;
+        result
+    }
+
     fn begin_scope(&mut self) {
         self.scopes.push(HashMap::new());
     }
@@ -141,15 +190,19 @@ impl Resolver {
     }
 
     fn resolve_local(&mut self, expr: &Expr, name: &Token) {
-        while let Some((idx, scope)) = self.scopes.iter().rev().enumerate().next() {
+        for (idx, scope) in self.scopes.iter().rev().enumerate() {
             if scope.contains_key(&name.lexeme) {
                 self.interpreter.resolve(expr, idx);
+                return;
             }
         }
     }
 
     fn declare(&mut self, name: &Token) -> CompiletimeResult<()> {
         if let Some(scope) = self.scopes.last_mut() {
+            if scope.contains_key(&name.lexeme) {
+                return Err(CompiletimeError::AlreadyDeclared(name.clone()));
+            }
             scope.insert(name.lexeme.to_owned(), false);
         }
 

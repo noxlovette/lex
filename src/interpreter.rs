@@ -1,12 +1,14 @@
 use crate::{
     Environment, EvalResult, Expr, Function, IsTruthy, RuntimeControl, RuntimeError, RuntimeResult,
-    Stmt, TokenType, Value,
+    Stmt, Token, TokenType, Value,
 };
-use std::{cell::RefCell, ops::Deref, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, ops::Deref, rc::Rc};
 
 #[derive(Debug)]
 pub struct Interpreter {
     pub(crate) environment: Rc<RefCell<Environment>>,
+    globals: Rc<RefCell<Environment>>,
+    locals: HashMap<usize, usize>,
 }
 
 impl Default for Interpreter {
@@ -17,8 +19,11 @@ impl Default for Interpreter {
 
 impl Interpreter {
     pub fn new() -> Self {
+        let globals = Rc::new(RefCell::new(Environment::new()));
         Self {
-            environment: Rc::new(RefCell::new(Environment::new())),
+            environment: globals.clone(),
+            globals,
+            locals: HashMap::new(),
         }
     }
 
@@ -29,8 +34,11 @@ impl Interpreter {
         Ok(())
     }
 
-    pub(crate) fn resolve(&mut self, expr: &Expr, idx: usize) {
-        todo!()
+    pub fn resolve(&mut self, expr: &Expr, depth: usize) {
+        let id = expr
+            .id()
+            .expect("resolver only stores locals for variable and assignment expressions");
+        self.locals.insert(id, depth);
     }
 
     fn eval(&mut self, expr: &Expr) -> EvalResult<Value> {
@@ -68,10 +76,19 @@ impl Interpreter {
                     _ => unreachable!(),
                 }
             }
-            Variable { name } => Ok(self.environment.borrow().get(name)?),
-            Assign { name, value } => {
+            Variable { name, .. } => Ok(self.look_up_var(name, expr)?),
+            Assign { name, value, .. } => {
                 let value = self.eval(value)?;
-                self.environment.borrow_mut().assign(name, &value)?;
+
+                let expr_id = expr.id().expect("assignment expressions always have an id");
+                if let Some(distance) = self.locals.get(&expr_id) {
+                    self.environment
+                        .borrow_mut()
+                        .assign_at(*distance, name, value.clone())?;
+                } else {
+                    self.globals.borrow_mut().assign(name, &value)?;
+                }
+
                 Ok(value)
             }
             Logical {
@@ -159,18 +176,10 @@ impl Interpreter {
                 Ok(())
             }
             Stmt::Block { statements } => {
-                let prev = self.environment.clone();
-                self.environment = Environment::new().with_enclosing(prev.clone()).rc();
-
-                let res: EvalResult<()> = (|| {
-                    for stmt in statements {
-                        self.execute(stmt)?;
-                    }
-                    Ok(())
-                })();
-
-                self.environment = prev;
-                res
+                let environment = Environment::new()
+                    .with_enclosing(self.environment.clone())
+                    .rc();
+                self.execute_block(statements, environment)
             }
             Stmt::If {
                 condition,
@@ -216,6 +225,34 @@ impl Interpreter {
             }
 
             _ => unimplemented!(),
+        }
+    }
+
+    pub(crate) fn execute_block(
+        &mut self,
+        statements: &[Stmt],
+        environment: Rc<RefCell<Environment>>,
+    ) -> EvalResult<()> {
+        let previous = self.environment.clone();
+        self.environment = environment;
+
+        let result: EvalResult<()> = (|| {
+            for stmt in statements {
+                self.execute(stmt)?;
+            }
+            Ok(())
+        })();
+
+        self.environment = previous;
+        result
+    }
+
+    fn look_up_var(&mut self, name: &Token, expr: &Expr) -> RuntimeResult<Value> {
+        let expr_id = expr.id().expect("variable expressions always have an id");
+        if let Some(distance) = self.locals.get(&expr_id) {
+            self.environment.borrow().get_at(*distance, &name.lexeme)
+        } else {
+            self.globals.borrow().get(name)
         }
     }
 }

@@ -23,6 +23,54 @@ impl Environment {
         self
     }
 
+    pub fn get_at(&self, distance: usize, lexeme: &str) -> RuntimeResult<Value> {
+        if distance == 0 {
+            self.values
+                .get(lexeme)
+                .ok_or(RuntimeError::Undefined {
+                    lexeme: lexeme.to_string(),
+                })
+                .cloned()
+        } else {
+            self.enclosing
+                .as_ref()
+                .expect("resolver produced an invalid environment distance")
+                .borrow()
+                .get_at(distance - 1, lexeme)
+        }
+    }
+
+    pub fn assign_at(&mut self, distance: usize, name: &Token, value: Value) -> RuntimeResult<()> {
+        if distance == 0 {
+            if self.values.contains_key(&name.lexeme) {
+                self.values.insert(name.lexeme.clone(), value);
+                Ok(())
+            } else {
+                Err(RuntimeError::Undefined {
+                    lexeme: name.lexeme.clone(),
+                })
+            }
+        } else {
+            self.enclosing
+                .as_ref()
+                .expect("resolver produced an invalid environment distance")
+                .borrow_mut()
+                .assign_at(distance - 1, name, value)
+        }
+    }
+
+    fn ancestor(&self, distance: usize) -> Rc<RefCell<Self>> {
+        if distance == 0 {
+            self.clone().rc()
+        } else {
+            self.enclosing
+                .as_ref()
+                .expect("resolver produced an invalid environment distance")
+                .borrow()
+                .ancestor(distance - 1)
+        }
+    }
+
     pub fn define(&mut self, k: String, v: Option<Value>) {
         self.values.insert(k, v.unwrap_or_default());
     }

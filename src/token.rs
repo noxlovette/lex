@@ -2,7 +2,7 @@ use crate::Literal;
 use std::{collections::HashMap, fmt::Display, sync::LazyLock};
 use strum::Display;
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Hash, Eq)]
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
@@ -29,7 +29,7 @@ impl Token {
     }
 }
 
-#[derive(Display, Clone, Copy, Debug, PartialEq)]
+#[derive(Display, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum TokenType {
     // Single-character tokens.
     LeftParen,

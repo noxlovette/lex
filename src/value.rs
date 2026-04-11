@@ -49,19 +49,15 @@ impl Callable for Function {
                 params,
                 body,
             } => {
-                let prev = interpreter.environment.clone();
-                interpreter.environment =
-                    Environment::new().with_enclosing(self.closure.clone()).rc();
+                let environment = Environment::new().with_enclosing(self.closure.clone()).rc();
 
                 for (i, p) in params.iter().enumerate() {
-                    interpreter
-                        .environment
+                    environment
                         .borrow_mut()
                         .define(p.lexeme.clone(), args.get(i).cloned());
                 }
 
-                let result = interpreter.execute(&Stmt::Block { statements: body });
-                interpreter.environment = prev;
+                let result = interpreter.execute_block(&body, environment);
 
                 match result {
                     Ok(()) => Ok(Value::Nil),

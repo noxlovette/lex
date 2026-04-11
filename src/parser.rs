@@ -5,6 +5,7 @@ use crate::{Literal, TokenType::*};
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
+    next_expr_id: usize,
 }
 
 impl Parser {
@@ -13,6 +14,12 @@ impl Parser {
             tokens,
             ..Default::default()
         }
+    }
+
+    fn next_expr_id(&mut self) -> usize {
+        let id = self.next_expr_id;
+        self.next_expr_id += 1;
+        id
     }
 }
 
@@ -301,8 +308,9 @@ impl Parser {
             let equals = self.previous();
             let value = self.assignment()?;
 
-            if let Expr::Variable { name } = expr {
+            if let Expr::Variable { id: _, name } = expr {
                 Ok(Expr::Assign {
+                    id: self.next_expr_id(),
                     name,
                     value: value.into_box(),
                 })
@@ -437,6 +445,7 @@ impl Parser {
             Ok(Expr::Grouping { expression })
         } else if self.match_token(&[Identifier]) {
             Ok(Expr::Variable {
+                id: self.next_expr_id(),
                 name: self.previous(),
             })
         } else {
