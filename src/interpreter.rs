@@ -29,6 +29,10 @@ impl Interpreter {
         Ok(())
     }
 
+    pub(crate) fn resolve(&mut self, expr: &Expr, idx: usize) {
+        todo!()
+    }
+
     fn eval(&mut self, expr: &Expr) -> EvalResult<Value> {
         use Expr::*;
         use TokenType::*;

@@ -1,4 +1,4 @@
-use crate::Value;
+use crate::{Token, Value};
 use std::io;
 use thiserror::Error;
 
@@ -55,6 +55,8 @@ pub enum CompiletimeError {
         message: String,
         lexeme: String,
     },
+    #[error("Cannot read local variable in its own initialiser: {0}")]
+    InitializerError(Token),
 }
 
 #[derive(Debug, Error)]
