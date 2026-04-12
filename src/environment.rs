@@ -59,18 +59,6 @@ impl Environment {
         }
     }
 
-    fn ancestor(&self, distance: usize) -> Rc<RefCell<Self>> {
-        if distance == 0 {
-            self.clone().rc()
-        } else {
-            self.enclosing
-                .as_ref()
-                .expect("resolver produced an invalid environment distance")
-                .borrow()
-                .ancestor(distance - 1)
-        }
-    }
-
     pub fn define(&mut self, k: String, v: Option<Value>) {
         self.values.insert(k, v.unwrap_or_default());
     }

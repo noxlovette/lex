@@ -41,6 +41,8 @@ impl Parser {
             self.var_declaration()
         } else if self.match_token(&[Fun]) {
             self.function("function")
+        } else if self.match_token(&[Class]) {
+            self.class()
         } else {
             self.statement()
         };
@@ -53,6 +55,32 @@ impl Parser {
                 None
             }
         }
+    }
+
+    fn class(&mut self) -> CompiletimeResult<Stmt> {
+        let name = self.consume(&Identifier, "Expect class name")?;
+        let super_class = if self.match_token(&[Less]) {
+            Some(Expr::Variable {
+                id: self.next_expr_id(),
+                name: self.consume(&Identifier, "Expect superclass name")?,
+            })
+        } else {
+            None
+        };
+
+        self.consume(&LeftBrace, "Expect '}' before class body")?;
+        let mut methods = Vec::new();
+        while !self.check(&RightBrace) && !self.is_at_end() {
+            methods.push(self.function("method")?);
+        }
+
+        self.consume(&RightBrace, "Expect '}' afater class body")?;
+
+        Ok(Stmt::Class {
+            name,
+            super_class,
+            methods,
+        })
     }
 
     fn function(&mut self, kind: &str) -> CompiletimeResult<Stmt> {
@@ -314,6 +342,12 @@ impl Parser {
                     name,
                     value: value.into_box(),
                 })
+            } else if let Expr::Get { object, name } = expr {
+                Ok(Expr::Set {
+                    object,
+                    name,
+                    value: value.into_box(),
+                })
             } else {
                 Err(CompiletimeError::ParseError {
                     line: equals.line,
@@ -390,6 +424,12 @@ impl Parser {
         loop {
             if self.match_token(&[LeftParen]) {
                 expr = self.finish_call(expr)?;
+            } else if self.match_token(&[Dot]) {
+                let name = self.consume(&Identifier, "Expect property name afater '.'")?;
+                expr = Expr::Get {
+                    object: expr.into_box(),
+                    name,
+                }
             } else {
                 break;
             }
@@ -438,6 +478,20 @@ impl Parser {
         } else if self.match_token(&[Number, String]) {
             Ok(Expr::Literal {
                 value: self.previous().literal.unwrap_or_default(),
+            })
+        } else if self.match_token(&[This]) {
+            Ok(Expr::This {
+                id: self.next_expr_id(),
+                keyword: self.previous(),
+            })
+        } else if self.match_token(&[Super]) {
+            let keyword = self.previous();
+            self.consume(&Dot, "Expect '.' after 'super'")?;
+            let method = self.consume(&Identifier, "Expect superclass method name")?;
+            Ok(Expr::Super {
+                id: self.next_expr_id(),
+                keyword,
+                method,
             })
         } else if self.match_token(&[LeftParen]) {
             let expression = self.expression()?.into_box();

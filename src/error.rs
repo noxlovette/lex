@@ -61,6 +61,16 @@ pub enum CompiletimeError {
     AlreadyDeclared(Token),
     #[error("Can't return from top-level code.")]
     ReturnOutsideFunction,
+    #[error("Can't return a value from an initializer.")]
+    ReturnFromInitializer,
+    #[error("Can't use 'this' outside of a class.")]
+    ThisOutsideClass,
+    #[error("Can't use 'super' outside of a class.")]
+    SuperOutsideClass,
+    #[error("Can't use 'super' in a class with no superclass.")]
+    SuperWithoutSuperclass,
+    #[error("A class can't inherit from itself.")]
+    InheritSelf(Token),
 }
 
 #[derive(Debug, Error)]
@@ -75,4 +85,10 @@ pub enum RuntimeError {
     Arity { expected: usize, got: usize },
     #[error("Can't return from top-level code.")]
     ReturnOutsideFunction,
+    #[error("Only instances have fields.")]
+    FieldsOnInstancesOnly,
+    #[error("Only instances have properties.")]
+    PropertiesOnInstancesOnly,
+    #[error("Superclass must be a class.")]
+    SuperclassMustBeClass,
 }

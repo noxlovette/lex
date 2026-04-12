@@ -103,9 +103,11 @@ pub enum Expr {
         value: Box<Expr>,
     },
     This {
+        id: usize,
         keyword: Token,
     },
     Super {
+        id: usize,
         keyword: Token,
         method: Token,
     },
@@ -114,7 +116,10 @@ pub enum Expr {
 impl Expr {
     pub fn id(&self) -> Option<usize> {
         match self {
-            Expr::Assign { id, .. } | Expr::Variable { id, .. } => Some(*id),
+            Expr::Assign { id, .. }
+            | Expr::Variable { id, .. }
+            | Expr::This { id, .. }
+            | Expr::Super { id, .. } => Some(*id),
             _ => None,
         }
     }

@@ -1,7 +1,11 @@
-use crate::{Callable, Environment, Literal, RuntimeControl, RuntimeError, RuntimeResult, Stmt};
+use crate::{
+    Callable, Environment, Interpreter, Literal, RuntimeControl, RuntimeError, RuntimeResult, Stmt,
+    Token,
+};
 use std::{
     cell::RefCell,
     cmp::Ordering,
+    collections::HashMap,
     fmt::Display,
     ops::{Add, Div, Mul, Neg, Not, Sub},
     rc::Rc,
@@ -17,9 +21,88 @@ pub enum Value {
     String(String),
     Native(NativeFunction),
     Function(Function),
+    Class(Class),
+    Instance(Rc<RefCell<Instance>>),
 }
 
-// TODO: TRANSFORM INTO AN ENUM
+#[derive(Clone, Debug, PartialEq)]
+pub struct Class {
+    name: String,
+    superclass: Option<Rc<Class>>,
+    methods: HashMap<String, Function>,
+}
+
+impl Class {
+    pub fn new(
+        name: impl Into<String>,
+        superclass: Option<Rc<Class>>,
+        methods: HashMap<String, Function>,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            superclass,
+            methods,
+        }
+    }
+
+    pub fn find_method(&self, name: &str) -> Option<Function> {
+        self.methods
+            .get(name)
+            .cloned()
+            .or_else(|| self.superclass.as_ref().and_then(|class| class.find_method(name)))
+    }
+}
+
+impl Callable for Class {
+    fn call(self, interpreter: &mut Interpreter, args: Vec<Value>) -> RuntimeResult<Value> {
+        let instance = Rc::new(RefCell::new(Instance::new(self.clone())));
+
+        if let Some(initializer) = self.find_method("init") {
+            initializer.bind(&instance).call(interpreter, args)?;
+        }
+
+        Ok(Value::Instance(instance))
+    }
+
+    fn arity(&self) -> usize {
+        self.find_method("init").map_or(0, |init| init.arity())
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Instance {
+    class: Class,
+    fields: HashMap<String, Value>,
+}
+
+impl Instance {
+    pub fn new(class: Class) -> Self {
+        Self {
+            class,
+            fields: HashMap::new(),
+        }
+    }
+
+    pub fn get(instance: &Rc<RefCell<Self>>, name: &Token) -> RuntimeResult<Value> {
+        if let Some(value) = instance.borrow().fields.get(&name.lexeme).cloned() {
+            return Ok(value);
+        }
+
+        let class = instance.borrow().class.clone();
+        if let Some(method) = class.find_method(&name.lexeme) {
+            return Ok(Value::Function(method.bind(instance)));
+        }
+
+        Err(RuntimeError::Undefined {
+            lexeme: name.lexeme.clone(),
+        })
+    }
+
+    pub fn set(&mut self, name: &Token, value: Value) {
+        self.fields.insert(name.lexeme.clone(), value);
+    }
+}
+
 #[derive(PartialEq, Debug, Clone, Default)]
 pub struct NativeFunction {
     arity: usize,
@@ -29,69 +112,97 @@ pub struct NativeFunction {
 pub struct Function {
     pub declaration: Stmt,
     pub closure: Rc<RefCell<Environment>>,
+    pub is_initializer: bool,
+}
+
+impl Function {
+    pub fn bind(&self, instance: &Rc<RefCell<Instance>>) -> Function {
+        let environment = Environment::new().with_enclosing(self.closure.clone()).rc();
+        environment
+            .borrow_mut()
+            .define("this".to_string(), Some(Value::Instance(instance.clone())));
+
+        Self {
+            declaration: self.declaration.clone(),
+            closure: environment,
+            is_initializer: self.is_initializer,
+        }
+    }
 }
 
 impl Callable for Function {
     fn arity(&self) -> usize {
         match &self.declaration {
-            Stmt::Function {
-                name: _,
-                params,
-                body: _,
-            } => params.len(),
+            Stmt::Function { params, .. } => params.len(),
             _ => unreachable!(),
         }
     }
-    fn call(self, interpreter: &mut crate::Interpreter, args: Vec<Value>) -> RuntimeResult<Value> {
-        match self.declaration {
-            Stmt::Function {
-                name: _,
-                params,
-                body,
-            } => {
+
+    fn call(self, interpreter: &mut Interpreter, args: Vec<Value>) -> RuntimeResult<Value> {
+        match &self.declaration {
+            Stmt::Function { params, body, .. } => {
                 let environment = Environment::new().with_enclosing(self.closure.clone()).rc();
 
-                for (i, p) in params.iter().enumerate() {
+                for (index, param) in params.iter().enumerate() {
                     environment
                         .borrow_mut()
-                        .define(p.lexeme.clone(), args.get(i).cloned());
+                        .define(param.lexeme.clone(), args.get(index).cloned());
                 }
 
-                let result = interpreter.execute_block(&body, environment);
+                let result = interpreter.execute_block(body, environment);
 
                 match result {
-                    Ok(()) => Ok(Value::Nil),
-                    Err(RuntimeControl::Return(value)) => Ok(value),
-                    Err(RuntimeControl::Error(err)) => Err(err),
+                    Ok(()) => {
+                        if self.is_initializer {
+                            self.closure.borrow().get_at(0, "this")
+                        } else {
+                            Ok(Value::Nil)
+                        }
+                    }
+                    Err(RuntimeControl::Return(value)) => {
+                        if self.is_initializer {
+                            self.closure.borrow().get_at(0, "this")
+                        } else {
+                            Ok(value)
+                        }
+                    }
+                    Err(RuntimeControl::Error(error)) => Err(error),
                 }
             }
-            _ => {
-                return Err(RuntimeError::NotCallable(
-                    "Tried to call function with no declaration".into(),
-                ));
-            }
+            _ => Err(RuntimeError::NotCallable(
+                "Tried to call a non-function value".to_string(),
+            )),
         }
     }
 }
 
 impl ToString for NativeFunction {
     fn to_string(&self) -> String {
-        String::from("<native fn>")
+        "<native fn>".to_string()
     }
 }
 
 impl ToString for Function {
     fn to_string(&self) -> String {
         match &self.declaration {
-            Stmt::Function {
-                name,
-                params: _,
-                body: _,
-            } => format!("<fn {}>", name.lexeme),
+            Stmt::Function { name, .. } => format!("<fn {}>", name.lexeme),
             _ => unreachable!(),
         }
     }
 }
+
+impl ToString for Class {
+    fn to_string(&self) -> String {
+        self.name.clone()
+    }
+}
+
+impl ToString for Instance {
+    fn to_string(&self) -> String {
+        format!("{} instance", self.class.to_string())
+    }
+}
+
 impl Callable for NativeFunction {
     fn call(
         self,
@@ -101,10 +212,11 @@ impl Callable for NativeFunction {
         Ok(Value::Number(
             std::time::SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .expect("Safe to expect.")
+                .expect("system time should be after the unix epoch")
                 .as_secs_f64(),
         ))
     }
+
     fn arity(&self) -> usize {
         self.arity
     }
@@ -113,25 +225,27 @@ impl Callable for NativeFunction {
 impl Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use Value::*;
+
         match self {
             Number(n) => {
                 let text = n.to_string();
-                let trimmed = text.trim_end_matches(".0");
-                write!(f, "{trimmed}")
+                write!(f, "{}", text.trim_end_matches(".0"))
             }
-            String(s) => {
-                write!(f, "{s}")
-            }
+            String(s) => write!(f, "{s}"),
             Bool(b) => write!(f, "{b}"),
             Nil => write!(f, "nil"),
             Native(n) => write!(f, "{}", n.to_string()),
-            Function(d) => write!(f, "{}", d.to_string()),
+            Function(function) => write!(f, "{}", function.to_string()),
+            Class(class) => write!(f, "{}", class.to_string()),
+            Instance(instance) => write!(f, "{}", instance.borrow().to_string()),
         }
     }
 }
+
 impl From<&Literal> for Value {
     fn from(value: &Literal) -> Self {
         use Literal::*;
+
         match value {
             Nil => Self::Nil,
             Bool(b) => Self::Bool(*b),
@@ -143,6 +257,7 @@ impl From<&Literal> for Value {
 
 impl Not for Value {
     type Output = Self;
+
     fn not(self) -> Self::Output {
         Self::Bool(!self.is_truthy())
     }
@@ -153,7 +268,7 @@ impl Neg for Value {
 
     fn neg(self) -> Self::Output {
         match self {
-            Self::Number(a) => Ok(Value::Number(-a)),
+            Self::Number(value) => Ok(Value::Number(-value)),
             _ => Err(RuntimeError::TypeError {
                 message: "Tried to apply '-' operator on a non-number".to_string(),
                 value: self,
@@ -174,10 +289,9 @@ pub trait IsTruthy {
 
 impl IsTruthy for Value {
     fn is_truthy(&self) -> bool {
-        use Value::*;
         match self {
-            Nil => false,
-            Bool(b) => *b,
+            Value::Nil => false,
+            Value::Bool(value) => *value,
             _ => true,
         }
     }
@@ -185,11 +299,12 @@ impl IsTruthy for Value {
 
 impl Add for Value {
     type Output = RuntimeResult<Self>;
+
     fn add(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
-            (Self::Number(a), Self::Number(b)) => Ok(Self::Number(a + b)),
-            (Self::String(a), Self::String(b)) => Ok(Self::String(a + &b)),
-            (left, _right) => Err(RuntimeError::TypeError {
+            (Self::Number(left), Self::Number(right)) => Ok(Self::Number(left + right)),
+            (Self::String(left), Self::String(right)) => Ok(Self::String(left + &right)),
+            (left, _) => Err(RuntimeError::TypeError {
                 message: "Operands must be either strings or numbers".to_string(),
                 value: left,
             }),
@@ -200,7 +315,7 @@ impl Add for Value {
 impl PartialOrd for Value {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         match (self, other) {
-            (Value::Number(a), Value::Number(b)) => a.partial_cmp(b),
+            (Value::Number(left), Value::Number(right)) => left.partial_cmp(right),
             _ => None,
         }
     }
@@ -220,13 +335,13 @@ impl From<String> for Value {
 
 impl From<&str> for Value {
     fn from(value: &str) -> Self {
-        Value::String(value.to_string())
+        Self::String(value.to_string())
     }
 }
 
 impl From<f64> for Value {
     fn from(value: f64) -> Self {
-        Value::Number(value)
+        Self::Number(value)
     }
 }
 
@@ -236,7 +351,7 @@ where
 {
     fn from(value: Option<T>) -> Self {
         match value {
-            Some(v) => v.into(),
+            Some(value) => value.into(),
             None => Value::Nil,
         }
     }
@@ -255,10 +370,10 @@ macro_rules! impl_numeric_binop {
 
             fn $method(self, rhs: Self) -> Self::Output {
                 match (self, rhs) {
-                    (Self::Number(a), Self::Number(b)) => Ok(Self::Number(a $op b)),
-                    (left, _right) => Err(RuntimeError::TypeError {
-                    message:    "Operands must be numbers".to_string(),
-                    value: left
+                    (Self::Number(left), Self::Number(right)) => Ok(Self::Number(left $op right)),
+                    (left, _) => Err(RuntimeError::TypeError {
+                        message: "Operands must be numbers".to_string(),
+                        value: left,
                     }),
                 }
             }
