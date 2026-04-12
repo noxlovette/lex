@@ -8,14 +8,14 @@ pub(crate) type EvalResult<T> = Result<T, RuntimeControl>;
 
 #[derive(Debug)]
 pub(crate) enum RuntimeControl {
-    Error(RuntimeError),
-    Return(Value),
+    Error(Box<RuntimeError>),
+    Return(Box<Value>),
 }
 
 impl From<RuntimeControl> for RuntimeError {
     fn from(value: RuntimeControl) -> Self {
         match value {
-            RuntimeControl::Error(err) => err,
+            RuntimeControl::Error(err) => *err,
             RuntimeControl::Return(_) => RuntimeError::ReturnOutsideFunction,
         }
     }
@@ -23,13 +23,13 @@ impl From<RuntimeControl> for RuntimeError {
 
 impl<T> From<RuntimeError> for EvalResult<T> {
     fn from(value: RuntimeError) -> Self {
-        Self::Err(RuntimeControl::Error(value))
+        Self::Err(RuntimeControl::Error(Box::new(value)))
     }
 }
 
 impl From<RuntimeError> for RuntimeControl {
     fn from(value: RuntimeError) -> Self {
-        RuntimeControl::Error(value)
+        RuntimeControl::Error(Box::new(value))
     }
 }
 
@@ -76,7 +76,7 @@ pub enum CompiletimeError {
 #[derive(Debug, Error)]
 pub enum RuntimeError {
     #[error("Type Error: {message:?}. Found: {value:?}")]
-    TypeError { message: String, value: Value },
+    TypeError { message: String, value: Box<Value> },
     #[error("Undefined variable {lexeme:?}")]
     Undefined { lexeme: String },
     #[error("Expression not callable {0}")]

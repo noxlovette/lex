@@ -6,7 +6,7 @@ use std::{
     cell::RefCell,
     cmp::Ordering,
     collections::HashMap,
-    fmt::Display,
+    fmt::{Display, Formatter},
     ops::{Add, Div, Mul, Neg, Not, Sub},
     rc::Rc,
     time::UNIX_EPOCH,
@@ -163,10 +163,10 @@ impl Callable for Function {
                         if self.is_initializer {
                             self.closure.borrow().get_at(0, "this")
                         } else {
-                            Ok(value)
+                            Ok(*value)
                         }
                     }
-                    Err(RuntimeControl::Error(error)) => Err(error),
+                    Err(RuntimeControl::Error(error)) => Err(*error),
                 }
             }
             _ => Err(RuntimeError::NotCallable(
@@ -176,30 +176,30 @@ impl Callable for Function {
     }
 }
 
-impl ToString for NativeFunction {
-    fn to_string(&self) -> String {
-        "<native fn>".to_string()
+impl Display for NativeFunction {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<native fn>")
     }
 }
 
-impl ToString for Function {
-    fn to_string(&self) -> String {
+impl Display for Function {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match &self.declaration {
-            Stmt::Function { name, .. } => format!("<fn {}>", name.lexeme),
+            Stmt::Function { name, .. } => write!(f, "<fn {}>", name.lexeme),
             _ => unreachable!(),
         }
     }
 }
 
-impl ToString for Class {
-    fn to_string(&self) -> String {
-        self.name.clone()
+impl Display for Class {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
     }
 }
 
-impl ToString for Instance {
-    fn to_string(&self) -> String {
-        format!("{} instance", self.class.to_string())
+impl Display for Instance {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} instance", self.class)
     }
 }
 
@@ -234,10 +234,10 @@ impl Display for Value {
             String(s) => write!(f, "{s}"),
             Bool(b) => write!(f, "{b}"),
             Nil => write!(f, "nil"),
-            Native(n) => write!(f, "{}", n.to_string()),
-            Function(function) => write!(f, "{}", function.to_string()),
-            Class(class) => write!(f, "{}", class.to_string()),
-            Instance(instance) => write!(f, "{}", instance.borrow().to_string()),
+            Native(n) => write!(f, "{n}"),
+            Function(function) => write!(f, "{function}"),
+            Class(class) => write!(f, "{class}"),
+            Instance(instance) => write!(f, "{}", instance.borrow()),
         }
     }
 }
@@ -271,7 +271,7 @@ impl Neg for Value {
             Self::Number(value) => Ok(Value::Number(-value)),
             _ => Err(RuntimeError::TypeError {
                 message: "Tried to apply '-' operator on a non-number".to_string(),
-                value: self,
+                value: Box::new(self),
             }),
         }
     }
@@ -306,7 +306,7 @@ impl Add for Value {
             (Self::String(left), Self::String(right)) => Ok(Self::String(left + &right)),
             (left, _) => Err(RuntimeError::TypeError {
                 message: "Operands must be either strings or numbers".to_string(),
-                value: left,
+                value: Box::new(left),
             }),
         }
     }
@@ -373,7 +373,7 @@ macro_rules! impl_numeric_binop {
                     (Self::Number(left), Self::Number(right)) => Ok(Self::Number(left $op right)),
                     (left, _) => Err(RuntimeError::TypeError {
                         message: "Operands must be numbers".to_string(),
-                        value: left,
+                        value: Box::new(left),
                     }),
                 }
             }

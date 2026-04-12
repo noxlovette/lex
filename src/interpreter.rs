@@ -2,7 +2,7 @@ use crate::{
     Class, Environment, EvalResult, Expr, Function, Instance, IsTruthy, RuntimeControl,
     RuntimeError, RuntimeResult, Stmt, Token, TokenType, Value,
 };
-use std::{cell::RefCell, collections::HashMap, ops::Deref, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, fmt::Display, ops::Deref, rc::Rc};
 
 #[derive(Debug)]
 pub struct Interpreter {
@@ -276,7 +276,7 @@ impl Interpreter {
                     Value::Nil
                 };
 
-                Err(RuntimeControl::Return(value))
+                Err(RuntimeControl::Return(Box::new(value)))
             }
             Stmt::Class {
                 name,
@@ -371,7 +371,7 @@ impl Interpreter {
     }
 }
 
-pub(crate) trait Callable: ToString {
+pub(crate) trait Callable: Display {
     fn call(self, interpreter: &mut Interpreter, args: Vec<Value>) -> RuntimeResult<Value>;
     fn arity(&self) -> usize;
 }
