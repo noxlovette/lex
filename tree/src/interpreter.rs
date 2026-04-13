@@ -20,6 +20,11 @@ impl Default for Interpreter {
 impl Interpreter {
     pub fn new() -> Self {
         let globals = Rc::new(RefCell::new(Environment::new()));
+        globals.borrow_mut().define(
+            "clock".to_string(),
+            Some(Value::Native(crate::NativeFunction::new(0))),
+        );
+
         Self {
             environment: globals.clone(),
             globals,
@@ -330,11 +335,8 @@ impl Interpreter {
                     self.environment = enclosing_environment.clone();
                 }
 
-                let class = Value::Class(Class::new(
-                    name.lexeme.clone(),
-                    superclass,
-                    class_methods,
-                ));
+                let class =
+                    Value::Class(Class::new(name.lexeme.clone(), superclass, class_methods));
 
                 self.environment.borrow_mut().assign(name, &class)?;
                 Ok(())
@@ -368,6 +370,23 @@ impl Interpreter {
         } else {
             self.globals.borrow().get(name)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Interpreter;
+
+    #[test]
+    fn registers_clock_native_function_in_globals() {
+        let interpreter = Interpreter::new();
+        let value = interpreter
+            .globals
+            .borrow()
+            .get_at(0, "clock")
+            .expect("clock should be installed in globals");
+
+        assert!(matches!(value, crate::Value::Native(_)));
     }
 }
 

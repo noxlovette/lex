@@ -29,6 +29,10 @@ impl<'a> Vm<'a> {
         use crate::OpCode::*;
 
         loop {
+            #[cfg(feature = "trace_execution")]
+            {
+                self.chunk.disassemble_instruction(self.ip)
+            }
             // Dispatch/decode the instruction
             let instruction = self.chunk.code[self.ip];
             // Point to the next byte of code

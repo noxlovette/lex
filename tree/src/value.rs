@@ -46,10 +46,11 @@ impl Class {
     }
 
     pub fn find_method(&self, name: &str) -> Option<Function> {
-        self.methods
-            .get(name)
-            .cloned()
-            .or_else(|| self.superclass.as_ref().and_then(|class| class.find_method(name)))
+        self.methods.get(name).cloned().or_else(|| {
+            self.superclass
+                .as_ref()
+                .and_then(|class| class.find_method(name))
+        })
     }
 }
 
@@ -106,6 +107,12 @@ impl Instance {
 #[derive(PartialEq, Debug, Clone, Default)]
 pub struct NativeFunction {
     arity: usize,
+}
+
+impl NativeFunction {
+    pub fn new(arity: usize) -> Self {
+        Self { arity }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
