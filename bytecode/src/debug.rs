@@ -11,9 +11,13 @@ impl Chunk {
     }
 
     fn disassemble_instruction(&self, offset: usize) -> usize {
+        use OpCode::*;
         print!("{:04} ", offset);
         match self.code[offset].try_into() {
-            Ok(op) => Self::simple_instruction(&op, offset),
+            Ok(op) => match op {
+                Return => Self::simple_instruction(&op, offset),
+                Constant => self.constant_instruction(&op, offset),
+            },
             Err(e) => {
                 eprintln!("{e}");
                 offset + 1
@@ -24,5 +28,12 @@ impl Chunk {
     fn simple_instruction(code: &OpCode, offset: usize) -> usize {
         println!("{code}");
         offset + 1
+    }
+
+    fn constant_instruction(&self, code: &OpCode, offset: usize) -> usize {
+        let constant = self.code[offset + 1];
+        print!("{:<16} {:>4} '", code, constant);
+        println!("{}", self.constants[constant as usize]);
+        offset + 2
     }
 }
