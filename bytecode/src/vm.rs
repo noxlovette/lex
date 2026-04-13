@@ -31,7 +31,7 @@ impl<'a> Vm<'a> {
         loop {
             #[cfg(feature = "trace_execution")]
             {
-                self.chunk.disassemble_instruction(self.ip)
+                self.chunk.disassemble_instruction(self.ip);
             }
             // Dispatch/decode the instruction
             let instruction = self.chunk.code[self.ip];
