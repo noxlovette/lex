@@ -2,6 +2,7 @@ use crate::{Chunk, OpCode};
 
 impl Chunk {
     #[cfg(debug_assertions)]
+    /// Convert an instruction into a human-friendly format for debugging
     pub fn disassemble(&self, name: &str) {
         println!("== {name} ==");
         let mut offset = 0;
@@ -13,6 +14,12 @@ impl Chunk {
     fn disassemble_instruction(&self, offset: usize) -> usize {
         use OpCode::*;
         print!("{:04} ", offset);
+        if offset > 0 && self.lines[offset] == self.lines[offset - 1] {
+            print!("   | ");
+        } else {
+            print!("{:4} ", self.lines[offset]);
+        }
+
         match self.code[offset].try_into() {
             Ok(op) => match op {
                 Return => Self::simple_instruction(&op, offset),
